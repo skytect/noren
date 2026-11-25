@@ -10,6 +10,11 @@
 // Needs Accessibility, to change events. An active tap whose process loses that grant can hold
 // every click on the screen, so the tap runs only while the grant is there: it is looked at every
 // grantCheckInterval, and the tap removed when it is gone and made again when it is back.
+//
+// The com.apple.accessibility.api distributed notification, posted when the Accessibility list
+// changes, does not replace the timer: it is not posted when an app's row is removed, the case
+// where a tap left running would hold the clicks, and on a first grant it can arrive before the
+// grant is committed, so a check made on it reads the old answer.
 import AppKit
 import os
 
