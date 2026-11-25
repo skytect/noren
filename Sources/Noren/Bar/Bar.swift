@@ -27,10 +27,6 @@ final class Bar: Part {
   private static let titlePollInterval: TimeInterval = 2
   /// Events come in bursts (a workspace change brings a focus change); one look covers a burst.
   private static let coalesceDelay = Duration.milliseconds(20)
-  /// How often to look at the clock, and, while the menu bar is uncovered, whether to cover it
-  /// again.
-  private static let idleInterval: TimeInterval = 0.5
-  private static let activeInterval: TimeInterval = 1.0 / 20
 
   private let log = Logger(subsystem: "local.noren", category: "bar")
   private let config: BarConfig
@@ -51,9 +47,8 @@ final class Bar: Part {
   /// order.
   private var following: Task<Void, Never>?
   private var refreshQueued = false
-  private var tick: Timer?
-  private var tickIsActive = false
-  private var shownClock = ""
+  /// Brings the bars back over the menu bar once it is left alone.
+  private var watch: MenuBarWatch?
   private var reportedNoHeight = false
 
   init(
@@ -70,6 +65,9 @@ final class Bar: Part {
 
   func start() {
     status?.start { [unowned self] in redraw() }
+    clock.start { [unowned self] in redraw() }
+    watch = MenuBarWatch(
+      inMenuBar: { [unowned self] in inMenuBar($0) }, cover: { [unowned self] in uncover(false) })
     buildScreens()
     NotificationCenter.default.addObserver(
       forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
@@ -133,7 +131,7 @@ final class Bar: Part {
         screen.fadeIn()
       }
     }
-    onTick()
+    if uncovered { watch?.start() }
   }
 
   // MARK: Drawing
@@ -154,7 +152,6 @@ final class Bar: Part {
       if uncovered { screen.panel.orderOut(nil) }
       return screen
     }
-    onTick()
   }
 
   /// The configured height, or the tallest menu bar among the screens, the one beside a notch.
@@ -170,48 +167,11 @@ final class Bar: Part {
     return tallest
   }
 
-  // MARK: Covering the menu bar again
-
-  private func schedule(active: Bool) {
-    if tick != nil && active == tickIsActive { return }
-    tickIsActive = active
-    tick?.invalidate()
-    let timer = Timer(
-      timeInterval: active ? Self.activeInterval : Self.idleInterval, repeats: true
-    ) { [unowned self] _ in
-      MainActor.assumeIsolated { onTick() }
-    }
-    RunLoop.main.add(timer, forMode: .common)
-    tick = timer
-  }
-
-  private func onTick() {
-    let text = clock.text()
-    if text != shownClock {
-      shownClock = text
-      redraw()
-    }
-    if uncovered && !pointerInMenuBar() && !menuOpen() { uncover(false) }
-    schedule(active: uncovered)
-  }
-
-  /// Whether the pointer is in any screen's menu bar.
-  private func pointerInMenuBar() -> Bool {
-    let pointer = NSEvent.mouseLocation
-    return screens.contains { screen in
+  /// Whether `point`, in screen coordinates, is in some screen's menu bar.
+  private func inMenuBar(_ point: NSPoint) -> Bool {
+    screens.contains { screen in
       let bar = screen.panel.frame
-      return pointer.x >= bar.minX && pointer.x <= bar.maxX && pointer.y >= bar.minY
-    }
-  }
-
-  /// Whether a menu of another process is open (noren's own windows may share their level).
-  private func menuOpen() -> Bool {
-    let windows =
-      CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[CFString: Any]] ?? []
-    let menuLevel = Int(CGWindowLevelForKey(.popUpMenuWindow))
-    let me = Int(getpid())
-    return windows.contains { window in
-      window[kCGWindowLayer] as? Int == menuLevel && window[kCGWindowOwnerPID] as? Int != me
+      return (bar.minX...bar.maxX).contains(point.x) && (bar.minY...bar.maxY).contains(point.y)
     }
   }
 

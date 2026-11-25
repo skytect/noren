@@ -1,7 +1,7 @@
-// The bar's clock: its text, and the click that opens Notification Center. macOS has no call
-// that opens it, so the click presses the shortcut macOS binds to "Show Notification Center"
-// (SymbolicHotKey), read at each click so a change in Keyboard settings counts at once, or the
-// key bar.notification-center-key names.
+// The bar's clock: its text, which changes on a timer set for each minute's start, and the click
+// that opens Notification Center. macOS has no call that opens it, so the click presses the
+// shortcut macOS binds to "Show Notification Center" (SymbolicHotKey), read at each click so a
+// change in Keyboard settings counts at once, or the key bar.notification-center-key names.
 import AppKit
 import NorenCore
 import os
@@ -16,9 +16,55 @@ final class Clock {
     return formatter
   }()
   private var reportedNoShortcut = false
+  private var changed: () -> Void = {}
+  private var timer: Timer?
 
   init(configuredKey: Int?) {
     self.configuredKey = configuredKey
+  }
+
+  /// Calls `changed` whenever the time the clock shows changes: at each minute's start, and when
+  /// the Mac wakes or its clock or time zone is set, which a timer does not follow.
+  func start(changed: @escaping () -> Void) {
+    self.changed = changed
+    let center = NotificationCenter.default
+    for name in [Notification.Name.NSSystemClockDidChange, .NSSystemTimeZoneDidChange] {
+      center.addObserver(forName: name, object: nil, queue: .main) { [unowned self] _ in
+        MainActor.assumeIsolated { reset() }
+      }
+    }
+    NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+    ) { [unowned self] _ in
+      MainActor.assumeIsolated { reset() }
+    }
+    schedule()
+  }
+
+  /// Shows the time afresh, and sets the timer again from now.
+  private func reset() {
+    NSTimeZone.resetSystemTimeZone()
+    formatter.timeZone = .current
+    changed()
+    schedule()
+  }
+
+  /// Sets the timer for the next minute's start.
+  private func schedule() {
+    timer?.invalidate()
+    let now = Date()
+    let next =
+      Calendar.current.nextDate(
+        after: now, matching: DateComponents(second: 0), matchingPolicy: .nextTime)
+      ?? now.addingTimeInterval(60)
+    let timer = Timer(fire: next, interval: 0, repeats: false) { [unowned self] _ in
+      MainActor.assumeIsolated {
+        changed()
+        schedule()
+      }
+    }
+    RunLoop.main.add(timer, forMode: .common)
+    self.timer = timer
   }
 
   /// The time as the bar shows it.
