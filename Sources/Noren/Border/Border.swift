@@ -6,9 +6,12 @@
 //
 // The focused window comes from AeroSpace, asked after each focus event for the window server's
 // id of it (%{window-id-native}; the events' windowId is AeroSpace's own numbering); its frame and
-// stacking from the window server. The frame is followed every frame for a moment after any
-// AeroSpace event and while a mouse button is down (a drag or a resize), and looked at twice a
-// second otherwise.
+// stacking from the window server. Nothing is looked at while nothing happens: the ring is fitted
+// again when Accessibility says the window moved, resized, minimized or closed, or its app hid
+// (WindowWatch), and after any AeroSpace event. For a moment after each of those, and while the
+// mouse drags, the frame is followed every frame too, in case the notifications come too far
+// apart to keep the ring on a window being dragged or resized, and because the window server may
+// report a window's new corners a moment after it moved.
 //
 // A new window the Dock payload holds hidden gets its ring only once it has faded in (Appear).
 //
@@ -24,9 +27,9 @@ import NorenCore
 import os
 
 final class Border: Part {
-  private static let idleInterval: TimeInterval = 0.5
-  private static let activeInterval: TimeInterval = 1.0 / 60
-  private static let activeAfterEvent: TimeInterval = 0.5
+  private static let frameInterval: TimeInterval = 1.0 / 60
+  /// How long the ring follows every frame after something moved the window, or may have
+  private static let followAfterEvent: TimeInterval = 0.5
 
   private let log = Logger(subsystem: "local.noren", category: "border")
   private let config: BorderConfig
@@ -35,9 +38,12 @@ final class Border: Part {
   private let ring: Ring
   /// The focused window, nil when none is
   private var target: CGWindowID?
+  /// Accessibility's notifications about the focused window
+  private var watch: WindowWatch?
+  private var reportedUntrusted = false
+  /// Runs every frame while the ring follows the window closely, nil otherwise
   private var timer: Timer?
-  private var active = false
-  private var activeUntil = Date.distantPast
+  private var followUntil = Date.distantPast
   /// The latest read of the focused window; each waits for the one before, so the ring ends on
   /// the window focused last
   private var following: Task<Void, Never>?
@@ -62,16 +68,15 @@ final class Border: Part {
         MainActor.assumeIsolated { applyColors() }
       }
     }
-    NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged]) {
-      [unowned self] _ in
-      if !active { wake() }
+    // A window dragged or resized may tell Accessibility only when the drag ends
+    NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { [unowned self] _ in
+      follow()
     }
     NotificationCenter.default.addObserver(
       forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
     ) { [unowned self] _ in
       MainActor.assumeIsolated { wake() }
     }
-    schedule(active: false)
   }
 
   func handle(_ event: AeroSpaceEvent) {
@@ -84,8 +89,14 @@ final class Border: Part {
   /// Looks at the focused window again now, and follows it closely for a moment: AeroSpace is
   /// moving windows about, or a window the ring left alone may have appeared.
   func wake() {
-    activeUntil = Date(timeIntervalSinceNow: Self.activeAfterEvent)
+    followUntil = Date(timeIntervalSinceNow: Self.followAfterEvent)
     tick()
+  }
+
+  /// Follows the window every frame for a moment, without fitting the ring now if it already is.
+  private func follow() {
+    followUntil = Date(timeIntervalSinceNow: Self.followAfterEvent)
+    if timer == nil { tick() }
   }
 
   private func applyColors() {
@@ -121,27 +132,43 @@ final class Border: Part {
     if window != target {
       target = window
       ring.forgetFrame()
+      watch?.stop()
+      watch = window.flatMap(watchWindow)
     }
     wake()
   }
 
-  private func schedule(active: Bool) {
-    if timer != nil, active == self.active { return }
-    self.active = active
-    timer?.invalidate()
-    let timer = Timer(
-      timeInterval: active ? Self.activeInterval : Self.idleInterval, repeats: true
-    ) { [unowned self] _ in
-      MainActor.assumeIsolated { tick() }
+  /// Starts Accessibility's notifications about `window`; nil when they cannot start.
+  private func watchWindow(_ window: CGWindowID) -> WindowWatch? {
+    guard AXIsProcessTrusted() else {
+      if !reportedUntrusted {
+        reportedUntrusted = true
+        Problems.report(
+          "noren needs Accessibility for the border to follow windows; until then it moves only"
+            + " on AeroSpace's events")
+      }
+      return nil
     }
-    RunLoop.main.add(timer, forMode: .common)
-    self.timer = timer
+    guard let pid = Self.windowInfo(window)?[kCGWindowOwnerPID as String] as? pid_t else {
+      return nil
+    }
+    return WindowWatch(window: window, pid: pid) { [unowned self] in follow() }
   }
 
+  /// Fits the ring, and keeps doing so every frame until the moment of following is over.
   private func tick() {
     fit()
-    let dragging = NSEvent.pressedMouseButtons != 0
-    schedule(active: dragging || activeUntil.timeIntervalSinceNow > 0)
+    let following = followUntil.timeIntervalSinceNow > 0
+    if following, timer == nil {
+      let timer = Timer(timeInterval: Self.frameInterval, repeats: true) { [unowned self] _ in
+        MainActor.assumeIsolated { tick() }
+      }
+      RunLoop.main.add(timer, forMode: .common)
+      self.timer = timer
+    } else if !following {
+      timer?.invalidate()
+      timer = nil
+    }
   }
 
   /// Fits the ring over the focused window's edge, or hides it when there is nothing to ring.
@@ -155,13 +182,19 @@ final class Border: Part {
     ring.show(frame: frame, corners: CornerRadii.of(target, frame: frame))
   }
 
-  /// `window`'s frame in Cocoa coordinates, or nil if it is gone or not on screen.
-  private static func frame(of window: CGWindowID) -> CGRect? {
+  /// The window server's description of `window`, nil if it is gone.
+  private static func windowInfo(_ window: CGWindowID) -> [String: Any]? {
     // The array holds the window ids themselves, not number objects
     var ids: [UnsafeRawPointer?] = [UnsafeRawPointer(bitPattern: UInt(window))]
     guard let array = CFArrayCreate(nil, &ids, 1, nil),
-      let infos = CGWindowListCreateDescriptionFromArray(array) as? [[String: Any]],
-      let info = infos.first, info[kCGWindowIsOnscreen as String] as? Bool == true,
+      let infos = CGWindowListCreateDescriptionFromArray(array) as? [[String: Any]]
+    else { return nil }
+    return infos.first
+  }
+
+  /// `window`'s frame in Cocoa coordinates, or nil if it is gone or not on screen.
+  private static func frame(of window: CGWindowID) -> CGRect? {
+    guard let info = windowInfo(window), info[kCGWindowIsOnscreen as String] as? Bool == true,
       let bounds = info[kCGWindowBounds as String] as? NSDictionary,
       let quartz = CGRect(dictionaryRepresentation: bounds)
     else { return nil }
