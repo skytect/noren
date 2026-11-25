@@ -1,0 +1,35 @@
+// swift-tools-version: 6.2
+import PackageDescription
+
+// Swift 6.2's approachable concurrency: async functions run where they are called unless marked
+// @concurrent, and conformances may be isolated
+let approachableConcurrency: [SwiftSetting] = [
+  .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+  .enableUpcomingFeature("InferIsolatedConformances"),
+]
+
+let package = Package(
+  name: "noren",
+  platforms: [.macOS(.v26)],
+  products: [
+    .executable(name: "noren", targets: ["Noren"])
+  ],
+  targets: [
+    // The app: AppKit, so on the main actor unless said otherwise
+    .executableTarget(
+      name: "Noren",
+      dependencies: ["NorenCore"],
+      swiftSettings: approachableConcurrency + [.defaultIsolation(MainActor.self)]
+    ),
+    // What can be worked out without the screen, AeroSpace or macOS: kept apart so it is tested
+    .target(
+      name: "NorenCore",
+      swiftSettings: approachableConcurrency
+    ),
+    .testTarget(
+      name: "NorenCoreTests",
+      dependencies: ["NorenCore"],
+      swiftSettings: approachableConcurrency
+    ),
+  ]
+)
