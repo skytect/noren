@@ -22,7 +22,9 @@ noren runs inside the Dock:
    Restart; `csrutil status` shows the result. macOS 27.2 loads the arm64e payload without the
    `-arm64e_preview_abi` boot argument that yabai's guide adds; earlier versions may need it.
 
-2. Run the loader as root at startup, with the payload's path, for example as a launchd daemon:
+2. Run the loader as root at startup, with the payload's path. With nix-darwin, the flake's
+   module does it (`services.noren-dock.enable = true`; see the README). Otherwise, as a launchd
+   daemon running:
 
    ```
    /Applications/Noren.app/Contents/MacOS/noren-dock \

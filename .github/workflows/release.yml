@@ -1,0 +1,89 @@
+name: Release
+
+# A version tag (0.1.0) whose version nix/package.nix holds: build the app with nix, sign it with
+# the release certificate, publish it, and point the Homebrew cask at it.
+on:
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: The tag is the package's version
+        run: |
+          package=$(nix eval --raw .#default.version)
+          if [ "$package" != "$VERSION" ]; then
+            echo "::error::tag $VERSION, but nix/package.nix is at $package"
+            exit 1
+          fi
+
+      - name: Build
+        run: nix build .#default
+
+      # One self-signed certificate for every release: macOS ties noren's privacy grants to it, so
+      # they carry over updates
+      - name: Sign
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_CERT: ${{ secrets.SIGNING_CERT }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(openssl rand -hex 24)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s\n' "$SIGNING_KEY" > "$RUNNER_TEMP/key.pem"
+          printf '%s\n' "$SIGNING_CERT" > "$RUNNER_TEMP/cert.pem"
+          security import "$RUNNER_TEMP/key.pem" -k "$keychain" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/cert.pem" -k "$keychain"
+          rm "$RUNNER_TEMP/key.pem"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+
+          cp -R result/Applications/Noren.app .
+          chmod -R u+w Noren.app
+          codesign --force --deep --keychain "$keychain" --sign noren Noren.app
+          codesign --verify --deep --strict Noren.app
+          codesign --display --verbose=2 Noren.app
+          security delete-keychain "$keychain"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ditto -c -k --keepParent Noren.app "Noren-$VERSION.zip"
+          shasum -a 256 "Noren-$VERSION.zip" | cut -d' ' -f1 > sha256
+          gh release create "$VERSION" "Noren-$VERSION.zip" --title "$VERSION" --generate-notes
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: skytect/homebrew-tap
+          ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
+          path: tap
+
+      - name: Bump the cask
+        working-directory: tap
+        run: |
+          sed -i '' \
+            -e "s/^  version \".*\"/  version \"$VERSION\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$(cat ../sha256)\"/" \
+            Casks/noren.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "noren $VERSION"
+          git push

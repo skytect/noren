@@ -1,5 +1,6 @@
 # noren as an app bundle, $out/Applications/Noren.app: the Swift app, the Dock payload and its
-# loader (Dock/), and the icon. The one build of the bundle; the release workflow uses it too.
+# loader (Dock/), and the icon; $out/bin/noren is the app's binary, for the commands. The one build
+# of the bundle; the release workflow signs and ships it.
 {
   lib,
   stdenv,
@@ -10,7 +11,7 @@
   libicns,
 }:
 let
-  version = "0.0.0";
+  version = "0.1.0";
   # Package.swift's platforms
   minMacos = "26.0";
 in
@@ -85,6 +86,8 @@ stdenv.mkDerivation (finalAttrs: {
     </dict>
     </plist>
     PLIST
+    mkdir -p $out/bin
+    ln -s ../Applications/Noren.app/Contents/MacOS/noren $out/bin/noren
     runHook postInstall
   '';
 
@@ -92,6 +95,7 @@ stdenv.mkDerivation (finalAttrs: {
     description = "Bar, workspace strip and window border for the AeroSpace window manager";
     homepage = "https://github.com/skytect/noren";
     license = lib.licenses.mit;
+    mainProgram = "noren";
     platforms = [ "aarch64-darwin" ];
   };
 })
