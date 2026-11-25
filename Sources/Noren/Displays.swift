@@ -25,7 +25,7 @@ final class Displays: Part {
 
   init(config: DisplaysConfig) {
     rules = config.place
-    wallpaper = config.wallpaper.map { URL(fileURLWithPath: $0) }
+    wallpaper = config.wallpaper.map { URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath) }
   }
 
   func start() {

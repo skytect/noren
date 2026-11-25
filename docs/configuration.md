@@ -92,6 +92,20 @@ Each `[[displays.place]]` has:
 
 A display that is connected and out of place is moved back after any change to the screens.
 
+## `[restore]`
+
+While noren runs, it keeps a snapshot of the running apps and each window's workspace in
+`~/Library/Application Support/noren/snapshot.json`. After a restart or a logout, it reopens
+those apps hidden, moves their windows back to their workspaces, and closes any extra window
+(through Accessibility).
+
+Turn off macOS's own reopening of windows, or both reopen the apps. That is the "Reopen windows
+when logging back in" box in the restart dialog, or:
+
+```sh
+defaults write com.apple.loginwindow TALLogoutSavesState -bool false
+```
+
 ## Focus rules
 
 Commands run as keyboard focus moves into and out of matching windows. For example, these rules

@@ -358,7 +358,9 @@ final class Restore: Part {
     guard restoring[app.bundleId] === app else { return }
     restoring[app.bundleId] = nil
     app.running?.unhide()
-    log.info("restored \(app.bundleId, privacy: .public): \(summary, privacy: .public)")
+    // The summary holds window titles, which may be personal: redacted unless the log is told
+    // otherwise
+    log.info("restored \(app.bundleId, privacy: .public): \(summary, privacy: .private)")
     guard restoring.isEmpty else { return }
     log.info("restore done")
     scheduleSnapshot()
