@@ -1,0 +1,47 @@
+// Where a new window goes in a dwindle layout. AeroSpace puts a new window right after the focused
+// one in the same container, so every window would end up side by side. Joining it with that
+// window instead nests the two across the container, alternating side-by-side and stacked. The
+// second window of a workspace is left beside the first: that first split follows the screen's
+// longer side.
+
+/// What becomes of a new window: joined with the window before it, left where AeroSpace put it, or
+/// nothing when AeroSpace no longer lists it.
+public enum DwindleNesting: Equatable, Sendable {
+  /// Toward where a window joins the one before it, as `aerospace join-with` takes it
+  public enum Direction: String, Sendable {
+    case left, up
+  }
+
+  /// `aerospace join-with` the window toward `direction`, then show it faded in
+  case join(nativeId: UInt32, direction: Direction)
+  /// Left in place, then shown faded in, or at once (`fade` false) when it floats: nothing made
+  /// room for it
+  case leave(nativeId: UInt32, fade: Bool)
+  /// AeroSpace does not list the window (it closed already): nothing to place or show
+  case gone
+
+  /// The nesting of AeroSpace's window `window`, new, among every window AeroSpace lists
+  /// (`windows`, with their layouts and workspaces).
+  public init(of window: UInt32, among windows: [ListedWindow]) {
+    guard let new = windows.first(where: { $0.id == window }), let layout = new.layout else {
+      self = .gone
+      return
+    }
+    let direction: Direction
+    switch layout {
+    case "h_tiles": direction = .left
+    case "v_tiles": direction = .up
+    default:
+      // Floating or accordion
+      self = .leave(nativeId: new.nativeId, fade: layout != "floating")
+      return
+    }
+    let tiledBeside = windows.count {
+      $0.workspace == new.workspace && $0.layout?.hasSuffix("_tiles") == true
+    }
+    self =
+      tiledBeside > 2
+      ? .join(nativeId: new.nativeId, direction: direction)
+      : .leave(nativeId: new.nativeId, fade: true)
+  }
+}
