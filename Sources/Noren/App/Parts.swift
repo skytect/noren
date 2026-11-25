@@ -9,5 +9,8 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   if config.strip.enable {
     parts.append(Strip(aeroSpace: aeroSpace))
   }
+  if config.stay.enable {
+    parts.append(Stay(config: config.stay, aeroSpace: aeroSpace))
+  }
   return parts
 }
