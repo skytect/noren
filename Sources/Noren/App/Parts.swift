@@ -9,5 +9,8 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   if config.displays.enable {
     parts.append(Displays(config: config.displays))
   }
+  if config.restore.enable {
+    parts.append(Restore(aeroSpace: aeroSpace))
+  }
   return parts
 }
