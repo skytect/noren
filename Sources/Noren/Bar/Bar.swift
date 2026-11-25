@@ -23,8 +23,6 @@ import NorenCore
 import os
 
 final class Bar: Part {
-  /// Window titles change without an AeroSpace event (a browser tab, a terminal command).
-  private static let titlePollInterval: TimeInterval = 2
   /// Events come in bursts (a workspace change brings a focus change); one look covers a burst.
   private static let coalesceDelay = Duration.milliseconds(20)
 
@@ -49,6 +47,8 @@ final class Bar: Part {
   private var refreshQueued = false
   /// Brings the bars back over the menu bar once it is left alone.
   private var watch: MenuBarWatch?
+  /// Reads AeroSpace again when the focused window's title changes.
+  private var titles: TitleWatch?
   private var reportedNoHeight = false
 
   init(
@@ -66,6 +66,7 @@ final class Bar: Part {
   func start() {
     status?.start { [unowned self] in redraw() }
     clock.start { [unowned self] in redraw() }
+    titles = TitleWatch { [unowned self] in refresh() }
     watch = MenuBarWatch(
       inMenuBar: { [unowned self] in inMenuBar($0) }, cover: { [unowned self] in uncover(false) })
     buildScreens()
@@ -76,10 +77,6 @@ final class Bar: Part {
         buildScreens()
         refresh()
       }
-    }
-    Timer.scheduledTimer(withTimeInterval: Self.titlePollInterval, repeats: true) {
-      [unowned self] _ in
-      MainActor.assumeIsolated { refresh() }
     }
   }
 
@@ -205,8 +202,10 @@ final class Bar: Part {
       try? await Task.sleep(for: Self.coalesceDelay)
       refreshQueued = false
       follow { [unowned self] aeroSpace in
-        state = try await Self.readState(aeroSpace)
+        let state = try await Self.readState(aeroSpace)
+        self.state = state
         redraw()
+        titles?.follow(pid: state.focused.flatMap { state.pids[$0.key] })
       }
     }
   }
