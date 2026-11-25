@@ -248,7 +248,7 @@ final class Appear: Part {
       var listed: [CGWindowID: UInt32] = [:]
       do {
         for window in try await aeroSpace.run(
-          ["list-windows", "--all", "--json", "--format", "%{window-id-native} %{window-id}"],
+          ["list-windows", "--all", "--json", "--format", ListedWindow.format],
           as: [ListedWindow].self)
         {
           listed[window.nativeId] = window.id

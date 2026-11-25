@@ -23,21 +23,21 @@ public enum DwindleNesting: Equatable, Sendable {
   /// The nesting of AeroSpace's window `window`, new, among every window AeroSpace lists
   /// (`windows`, with their layouts and workspaces).
   public init(of window: UInt32, among windows: [ListedWindow]) {
-    guard let new = windows.first(where: { $0.id == window }), let layout = new.layout else {
+    guard let new = windows.first(where: { $0.id == window }) else {
       self = .gone
       return
     }
     let direction: Direction
-    switch layout {
+    switch new.layout {
     case "h_tiles": direction = .left
     case "v_tiles": direction = .up
     default:
       // Floating or accordion
-      self = .leave(nativeId: new.nativeId, fade: layout != "floating")
+      self = .leave(nativeId: new.nativeId, fade: new.layout != "floating")
       return
     }
     let tiledBeside = windows.count {
-      $0.workspace == new.workspace && $0.layout?.hasSuffix("_tiles") == true
+      $0.workspace == new.workspace && $0.layout.hasSuffix("_tiles")
     }
     self =
       tiledBeside > 2

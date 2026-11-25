@@ -49,10 +49,8 @@ final class Dwindle: Part {
     let windows: [ListedWindow]
     do {
       windows = try await aeroSpace.run(
-        [
-          "list-windows", "--all", "--json", "--format",
-          "%{window-id} %{window-id-native} %{window-parent-container-layout} %{workspace}",
-        ], as: [ListedWindow].self)
+        ["list-windows", "--all", "--json", "--format", ListedWindow.format],
+        as: [ListedWindow].self)
     } catch {
       log.error("could not list the windows: \(error, privacy: .public)")
       return

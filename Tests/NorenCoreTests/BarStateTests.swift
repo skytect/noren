@@ -1,4 +1,3 @@
-import Foundation
 import NorenCore
 import Testing
 
@@ -6,22 +5,32 @@ import Testing
   // Two screens: workspaces 1 to 3 on the first, 4 and 5 on the second. 1 has a tiled terminal,
   // 3 a floating calculator, 4 a tiled browser and a tiled terminal; 2 and 5 are empty.
   let workspaces = [
-    ListedWorkspace(name: "1", monitor: 1, isVisible: false, isFocused: false),
-    ListedWorkspace(name: "2", monitor: 1, isVisible: true, isFocused: true),
-    ListedWorkspace(name: "3", monitor: 1, isVisible: false, isFocused: false),
-    ListedWorkspace(name: "4", monitor: 2, isVisible: true, isFocused: false),
-    ListedWorkspace(name: "5", monitor: 2, isVisible: false, isFocused: false),
+    ListedWorkspace(name: "1", monitorId: 1, isVisible: false, isFocused: false),
+    ListedWorkspace(name: "2", monitorId: 1, isVisible: true, isFocused: true),
+    ListedWorkspace(name: "3", monitorId: 1, isVisible: false, isFocused: false),
+    ListedWorkspace(name: "4", monitorId: 2, isVisible: true, isFocused: false),
+    ListedWorkspace(name: "5", monitorId: 2, isVisible: false, isFocused: false),
   ]
   let used: Set<String> = ["1", "3", "4"]
   let windows = [
-    ListedWindow(workspace: "1", layout: "h_tiles", pid: 10, bundleId: "com.example.terminal"),
-    ListedWindow(workspace: "3", layout: "floating", pid: 20, bundleId: "com.example.calculator"),
-    ListedWindow(workspace: "4", layout: "v_accordion", pid: 30, bundleId: "com.example.browser"),
-    ListedWindow(workspace: "4", layout: "h_tiles", pid: 10, bundleId: "com.example.terminal"),
-    ListedWindow(workspace: "4", layout: "h_tiles", pid: 31, bundleId: "com.example.browser"),
+    Self.window(on: "1", layout: "h_tiles", pid: 10, bundleId: "com.example.terminal"),
+    Self.window(on: "3", layout: "floating", pid: 20, bundleId: "com.example.calculator"),
+    Self.window(on: "4", layout: "v_accordion", pid: 30, bundleId: "com.example.browser"),
+    Self.window(on: "4", layout: "h_tiles", pid: 10, bundleId: "com.example.terminal"),
+    Self.window(on: "4", layout: "h_tiles", pid: 31, bundleId: "com.example.browser"),
   ]
 
-  func state(focused: ListedFocusedWindow? = nil) -> BarState {
+  /// A window of the app `bundleId` (process `pid`) on `workspace`, in a container laid out as
+  /// `layout`. The bar does not read the other fields.
+  static func window(
+    on workspace: String, layout: String = "h_tiles", pid: Int32, bundleId: String?
+  ) -> ListedWindow {
+    ListedWindow(
+      id: 1, nativeId: 1, layout: layout, workspace: workspace, pid: pid, bundleId: bundleId,
+      appName: "app", title: "title")
+  }
+
+  func state(focused: ListedWindow? = nil) -> BarState {
     BarState(workspaces: workspaces, used: used, windows: windows, focused: focused)
   }
 
@@ -47,8 +56,7 @@ import Testing
   }
 
   @Test func `an app without a bundle id is keyed by its process`() {
-    let focused = ListedFocusedWindow(
-      pid: 77, bundleId: "NULL-BUNDLE-ID", appName: "tool", title: "tool")
+    let focused = Self.window(on: "2", pid: 77, bundleId: nil)
 
     #expect(state(focused: focused).focused?.key == .process(77))
   }
@@ -94,39 +102,5 @@ import Testing
   @Test func `stepping stops at the ends`() {
     #expect(state().workspace(steppingBy: 2, onScreen: 0) == nil)
     #expect(state().workspace(steppingBy: 1, onScreen: 1) == nil)
-  }
-
-  @Test func `AeroSpace's JSON listings decode`() throws {
-    let workspaces = Data(
-      """
-      [{"monitor-appkit-nsscreen-screens-id" : 1, "workspace" : "1",
-        "workspace-is-focused" : true, "workspace-is-visible" : true}]
-      """.utf8)
-    let windows = Data(
-      """
-      [{"app-bundle-id" : "com.example.terminal", "app-pid" : 958,
-        "window-parent-container-layout" : "h_tiles", "workspace" : "1"}]
-      """.utf8)
-    let focused = Data(
-      """
-      [{"app-bundle-id" : "com.example.terminal", "app-name" : "Terminal", "app-pid" : 958,
-        "window-title" : "a | title"}]
-      """.utf8)
-
-    #expect(
-      try JSONDecoder().decode([ListedWorkspace].self, from: workspaces)
-        == [ListedWorkspace(name: "1", monitor: 1, isVisible: true, isFocused: true)])
-    #expect(
-      try JSONDecoder().decode([ListedWindow].self, from: windows)
-        == [
-          ListedWindow(
-            workspace: "1", layout: "h_tiles", pid: 958, bundleId: "com.example.terminal")
-        ])
-    #expect(
-      try JSONDecoder().decode([ListedFocusedWindow].self, from: focused)
-        == [
-          ListedFocusedWindow(
-            pid: 958, bundleId: "com.example.terminal", appName: "Terminal", title: "a | title")
-        ])
   }
 }

@@ -47,20 +47,11 @@ final class FocusRules: Part {
   }
 
   private func focusedWindow() async throws -> FocusedWindow? {
-    struct Listed: Decodable {
-      enum CodingKeys: String, CodingKey {
-        case appId = "app-bundle-id"
-        case title = "window-title"
-      }
-
-      let appId: String?
-      let title: String
-    }
     do {
       let windows = try await aeroSpace.run(
-        ["list-windows", "--focused", "--json", "--format", "%{app-bundle-id} %{window-title}"],
-        as: [Listed].self)
-      return windows.first.map { FocusedWindow(appId: $0.appId, title: $0.title) }
+        ["list-windows", "--focused", "--json", "--format", ListedWindow.format],
+        as: [ListedWindow].self)
+      return windows.first.map { FocusedWindow(appId: $0.bundleId, title: $0.title) }
     } catch AeroSpaceError.noWindowFocused {
       return nil
     }

@@ -150,24 +150,11 @@ final class Restore: Part {
   private func save(apps: [String], ending: Bool) {
     following = Task { [previous = following] in
       await previous?.value
-      struct Listed: Decodable {
-        enum CodingKeys: String, CodingKey {
-          case appId = "app-bundle-id"
-          case workspace
-          case title = "window-title"
-        }
-
-        let appId: String?
-        let workspace: String
-        let title: String
-      }
-      let windows: [Listed]?
+      let windows: [ListedWindow]?
       do {
         windows = try await aeroSpace.run(
-          [
-            "list-windows", "--all", "--json", "--format",
-            "%{app-bundle-id} %{workspace} %{window-title}",
-          ], as: [Listed].self)
+          ["list-windows", "--all", "--json", "--format", ListedWindow.format],
+          as: [ListedWindow].self)
       } catch {
         log.error("could not list the windows: \(error, privacy: .public)")
         windows = nil
@@ -176,7 +163,7 @@ final class Restore: Part {
         last = RestoreSnapshot(
           boot: Self.bootSession(), apps: apps,
           windows: windows.map {
-            (appId: $0.appId, window: .init(workspace: $0.workspace, title: $0.title))
+            (appId: $0.bundleId, window: .init(workspace: $0.workspace, title: $0.title))
           })
       }
       guard var snapshot = last, windows != nil || ending else { return }
@@ -269,28 +256,11 @@ final class Restore: Part {
   private func place(_ app: RestoringApp, pid: pid_t) {
     following = Task { [previous = following] in
       await previous?.value
-      struct Listed: Decodable {
-        enum CodingKeys: String, CodingKey {
-          case id = "window-id"
-          case native = "window-id-native"
-          case pid = "app-pid"
-          case workspace
-          case title = "window-title"
-        }
-
-        let id: UInt32
-        let native: UInt32?
-        let pid: pid_t
-        let workspace: String
-        let title: String
-      }
-      let all: [Listed]
+      let all: [ListedWindow]
       do {
         all = try await aeroSpace.run(
-          [
-            "list-windows", "--all", "--json", "--format",
-            "%{window-id} %{window-id-native} %{app-pid} %{workspace} %{window-title}",
-          ], as: [Listed].self)
+          ["list-windows", "--all", "--json", "--format", ListedWindow.format],
+          as: [ListedWindow].self)
       } catch {
         log.error("could not list the windows: \(error, privacy: .public)")
         app.settling = false
@@ -319,8 +289,7 @@ final class Restore: Part {
       }
       for index in matching.unmatchedWindows {
         let window = windows[index]
-        var closed = false
-        if let native = window.native { closed = await Self.closeWindow(native, of: pid) }
+        let closed = await Self.closeWindow(window.nativeId, of: pid)
         done.append("\"\(window.title)\"" + (closed ? " closed" : " not closed"))
       }
       if !matching.unmatchedRecorded.isEmpty {

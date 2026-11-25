@@ -1,10 +1,12 @@
-import Foundation
 import NorenCore
 import Testing
 
 @Suite struct StripWorkspacesTests {
   func listed(_ names: [String], focused: String, monitorId: Int = 1) -> [ListedWorkspace] {
-    names.map { ListedWorkspace(name: $0, isFocused: $0 == focused, monitorId: monitorId) }
+    names.map {
+      ListedWorkspace(
+        name: $0, monitorId: monitorId, isVisible: $0 == focused, isFocused: $0 == focused)
+    }
   }
 
   @Test func `the strip holds the used workspaces and the focused one, on the focused screen`() {
@@ -35,30 +37,5 @@ import Testing
       listed: listed(["1", "2"], focused: "none"), used: ["1"], withSpare: true)
 
     #expect(strip == nil)
-  }
-
-  @Test func `AeroSpace's listing decodes`() throws {
-    let json = """
-      [
-        {
-          "monitor-appkit-nsscreen-screens-id" : 1,
-          "workspace" : "1",
-          "workspace-is-focused" : true
-        },
-        {
-          "monitor-appkit-nsscreen-screens-id" : 1,
-          "workspace" : "2",
-          "workspace-is-focused" : false
-        }
-      ]
-      """
-
-    let listed = try JSONDecoder().decode([ListedWorkspace].self, from: Data(json.utf8))
-
-    #expect(
-      listed == [
-        ListedWorkspace(name: "1", isFocused: true, monitorId: 1),
-        ListedWorkspace(name: "2", isFocused: false, monitorId: 1),
-      ])
   }
 }

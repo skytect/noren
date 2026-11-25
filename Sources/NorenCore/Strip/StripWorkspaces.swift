@@ -2,30 +2,6 @@
 // windows, and the focused one. For a swipe it also holds the first empty workspace after the last
 // of them, so swiping past the last used workspace opens a fresh one, and stops there.
 
-/// A workspace as `list-workspaces --json --format ListedWorkspace.format` lists it.
-public struct ListedWorkspace: Decodable, Equatable, Sendable {
-  enum CodingKeys: String, CodingKey {
-    case name = "workspace"
-    case isFocused = "workspace-is-focused"
-    case monitorId = "monitor-appkit-nsscreen-screens-id"
-  }
-
-  /// The `--format` that lists these fields.
-  public static let format =
-    "%{workspace} %{workspace-is-focused} %{monitor-appkit-nsscreen-screens-id}"
-
-  public let name: String
-  public let isFocused: Bool
-  /// The workspace's screen: its place in NSScreen.screens, counted from 1.
-  public let monitorId: Int
-
-  public init(name: String, isFocused: Bool, monitorId: Int) {
-    self.name = name
-    self.isFocused = isFocused
-    self.monitorId = monitorId
-  }
-}
-
 /// The workspaces in the strip, in AeroSpace's order.
 public struct StripWorkspaces: Equatable, Sendable {
   public let names: [String]

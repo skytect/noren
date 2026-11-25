@@ -7,100 +7,14 @@ public enum AppKey: Hashable, Sendable {
   case bundle(String)
   case process(Int32)
 
-  /// The key for an app AeroSpace lists with `bundleId` (nil, empty or AeroSpace's
-  /// `NULL-BUNDLE-ID` when it has none) and `pid`.
+  /// The key for an app AeroSpace lists with `bundleId` (nil or empty when it has none) and
+  /// `pid`.
   public init(bundleId: String?, pid: Int32) {
-    if let bundleId, !bundleId.isEmpty, bundleId != "NULL-BUNDLE-ID" {
+    if let bundleId, !bundleId.isEmpty {
       self = .bundle(bundleId)
     } else {
       self = .process(pid)
     }
-  }
-}
-
-/// A workspace as `list-workspaces --monitor all --json` lists it with the format in `format`.
-public struct ListedWorkspace: Decodable, Equatable, Sendable {
-  public static let format =
-    "%{workspace} %{monitor-appkit-nsscreen-screens-id} %{workspace-is-visible}"
-    + " %{workspace-is-focused}"
-
-  enum CodingKeys: String, CodingKey {
-    case name = "workspace"
-    case monitor = "monitor-appkit-nsscreen-screens-id"
-    case isVisible = "workspace-is-visible"
-    case isFocused = "workspace-is-focused"
-  }
-
-  public let name: String
-  /// The workspace's screen: its place in NSScreen.screens, counted from 1.
-  public let monitor: Int
-  public let isVisible: Bool
-  public let isFocused: Bool
-
-  public init(name: String, monitor: Int, isVisible: Bool, isFocused: Bool) {
-    self.name = name
-    self.monitor = monitor
-    self.isVisible = isVisible
-    self.isFocused = isFocused
-  }
-}
-
-/// A workspace name alone, as `list-workspaces --empty no --json` lists it.
-public struct ListedWorkspaceName: Decodable, Equatable, Sendable {
-  enum CodingKeys: String, CodingKey {
-    case name = "workspace"
-  }
-
-  public let name: String
-}
-
-/// A window as `list-windows --all --json` lists it with the format in `format`.
-public struct ListedWindow: Decodable, Equatable, Sendable {
-  public static let format =
-    "%{workspace} %{window-parent-container-layout} %{app-pid} %{app-bundle-id}"
-
-  enum CodingKeys: String, CodingKey {
-    case workspace
-    case layout = "window-parent-container-layout"
-    case pid = "app-pid"
-    case bundleId = "app-bundle-id"
-  }
-
-  public let workspace: String
-  /// `floating` for a floating window, else the layout of the container tiling it.
-  public let layout: String
-  public let pid: Int32
-  public let bundleId: String?
-
-  public init(workspace: String, layout: String, pid: Int32, bundleId: String?) {
-    self.workspace = workspace
-    self.layout = layout
-    self.pid = pid
-    self.bundleId = bundleId
-  }
-}
-
-/// The focused window as `list-windows --focused --json` lists it with the format in `format`.
-public struct ListedFocusedWindow: Decodable, Equatable, Sendable {
-  public static let format = "%{app-pid} %{app-bundle-id} %{app-name} %{window-title}"
-
-  enum CodingKeys: String, CodingKey {
-    case pid = "app-pid"
-    case bundleId = "app-bundle-id"
-    case appName = "app-name"
-    case title = "window-title"
-  }
-
-  public let pid: Int32
-  public let bundleId: String?
-  public let appName: String
-  public let title: String
-
-  public init(pid: Int32, bundleId: String?, appName: String, title: String) {
-    self.pid = pid
-    self.bundleId = bundleId
-    self.appName = appName
-    self.title = title
   }
 }
 
@@ -134,7 +48,7 @@ public struct BarState: Equatable, Sendable {
   /// windows (`used`), every window, and the focused one (nil when none is).
   public init(
     workspaces: [ListedWorkspace], used: Set<String>, windows: [ListedWindow],
-    focused: ListedFocusedWindow?
+    focused: ListedWindow?
   ) {
     var tiled: Set<String> = []
     var apps: [String: [AppKey]] = [:]
@@ -152,7 +66,7 @@ public struct BarState: Equatable, Sendable {
     var busy: Set<Int> = []
     var focusedScreen: Int?
     for workspace in workspaces {
-      let screen = workspace.monitor - 1
+      let screen = workspace.monitorId - 1
       if workspace.isVisible {
         visible[screen] = workspace.name
         if tiled.contains(workspace.name) { busy.insert(screen) }

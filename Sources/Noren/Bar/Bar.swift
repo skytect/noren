@@ -215,16 +215,18 @@ final class Bar: Part {
       ["list-workspaces", "--monitor", "all", "--json", "--format", ListedWorkspace.format],
       as: [ListedWorkspace].self)
     let used = try await aeroSpace.run(
-      ["list-workspaces", "--monitor", "all", "--empty", "no", "--json"],
-      as: [ListedWorkspaceName].self)
+      [
+        "list-workspaces", "--monitor", "all", "--empty", "no", "--json", "--format",
+        ListedWorkspace.format,
+      ], as: [ListedWorkspace].self)
     let windows = try await aeroSpace.run(
       ["list-windows", "--all", "--json", "--format", ListedWindow.format],
       as: [ListedWindow].self)
-    let focused: ListedFocusedWindow?
+    let focused: ListedWindow?
     do {
       focused = try await aeroSpace.run(
-        ["list-windows", "--focused", "--json", "--format", ListedFocusedWindow.format],
-        as: [ListedFocusedWindow].self
+        ["list-windows", "--focused", "--json", "--format", ListedWindow.format],
+        as: [ListedWindow].self
       ).first
     } catch AeroSpaceError.noWindowFocused {
       focused = nil
