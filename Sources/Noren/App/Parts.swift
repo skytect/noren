@@ -11,9 +11,14 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   let pointer = config.pointer.enable ? Pointer(aeroSpace: aeroSpace) : nil
   let border =
     config.border.enable
-    ? Border(config: config.border, aeroSpace: aeroSpace, isHeld: { appear?.holds($0) ?? false })
-    : nil
+    ? Border(config: config.border, aeroSpace: aeroSpace, isHeld: { appear?.holds($0) ?? false }) : nil
 
+  if config.bar.enable {
+    parts.append(
+      Bar(
+        config: config.bar, showsStatus: config.status.enable, aeroSpace: aeroSpace,
+        stayPointer: { pointer?.stay(forSwitchTo: $0) }))
+  }
   if config.strip.enable {
     parts.append(Strip(aeroSpace: aeroSpace))
   }

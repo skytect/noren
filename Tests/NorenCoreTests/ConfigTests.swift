@@ -62,6 +62,18 @@ import Testing
     }
   }
 
+  @Test func `a bar height of 0 is refused`() {
+    #expect(throws: ConfigError("bar.height: must be more than 0")) {
+      try Config(toml: "[bar]\nheight = 0")
+    }
+  }
+
+  @Test func `a notification center key that is no key code is refused`() {
+    #expect(throws: ConfigError("bar.notification-center-key: must be a key code, from 0 to 127")) {
+      try Config(toml: "[bar]\nnotification-center-key = 128")
+    }
+  }
+
   @Test func `an opacity above 1 is refused`() {
     #expect(throws: ConfigError("border.opacity: must be from 0 to 1")) {
       try Config(toml: "[border]\nopacity = 1.5")
