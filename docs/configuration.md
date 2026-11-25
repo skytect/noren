@@ -55,8 +55,19 @@ Each part has `enable` (default `true`).
 | --- | --- | --- |
 | `width` | `2` | In points, inside the window's edge |
 | `opacity` | `1` | From 0 to 1 |
-| `color` | the system blue | At the top-left corner |
+| `color` | the system accent colour | At the top-left corner |
 | `color-end` | `color` | At the bottom-right corner, blended from `color` |
+
+## `[drag]`
+
+Ctrl+drag works by adding Cmd to the drag, so it needs macOS's own Ctrl+Cmd+drag turned on:
+
+```sh
+defaults write -g NSWindowShouldDragOnGesture -bool true
+```
+
+and noren allowed Accessibility, which it asks for when it starts. Ctrl+click is then no longer a
+right-click.
 
 ## `[appear]`
 
