@@ -83,6 +83,16 @@ extension BarConfig: Decodable {
     warn = try container.optional(RGB.self, .warn)
     base = try container.optional(RGB.self, .base)
     notificationCenterKey = try container.optional(Int.self, .notificationCenterKey)
+    if let height, height <= 0 {
+      throw DecodingError.dataCorruptedError(
+        forKey: .height, in: container, debugDescription: "must be more than 0")
+    }
+    // macOS's virtual key codes, as CGKeyCode holds them
+    if let notificationCenterKey, !(0...0x7f).contains(notificationCenterKey) {
+      throw DecodingError.dataCorruptedError(
+        forKey: .notificationCenterKey, in: container,
+        debugDescription: "must be a key code, from 0 to 127")
+    }
   }
 }
 

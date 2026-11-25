@@ -35,13 +35,13 @@ Each part has `enable` (default `true`).
 
 | Key | Default | |
 | --- | --- | --- |
-| `height` | worked out | In points: the tallest menu bar among the screens, the one beside a notch |
+| `height` | worked out | In points, more than 0: the tallest menu bar among the screens, the one beside a notch |
 | `accent` | the system blue | The focused workspace |
 | `text` | `d9d9d9` | |
 | `dim` | `808080` | Workspaces without windows |
 | `warn` | the system yellow | Status items that need a look |
 | `base` | `000000` | Behind the bar on workspaces with windows |
-| `notification-center-key` | worked out | The key code the clock presses to open Notification Center; by default the shortcut set for it in Keyboard settings |
+| `notification-center-key` | worked out | The key code the clock presses to open Notification Center; by default the shortcut set for it in Keyboard settings. A configured key, from 0 to 127, is pressed with fn, as an F key is |
 
 ## `[stay]`
 
