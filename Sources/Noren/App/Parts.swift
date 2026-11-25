@@ -8,10 +8,20 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   // Parts that reach one another do so through closures over these, so any of them can be off
   // Made last, below
   var appear: Appear?
+  let pointer = config.pointer.enable ? Pointer(aeroSpace: aeroSpace) : nil
   let border =
     config.border.enable
     ? Border(config: config.border, aeroSpace: aeroSpace, isHeld: { appear?.holds($0) ?? false }) : nil
 
+  if config.strip.enable {
+    parts.append(Strip(aeroSpace: aeroSpace))
+  }
+  if config.stay.enable {
+    parts.append(Stay(config: config.stay, aeroSpace: aeroSpace))
+  }
+  if let pointer {
+    parts.append(pointer)
+  }
   if let border {
     parts.append(border)
   }

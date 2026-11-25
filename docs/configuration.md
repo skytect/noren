@@ -117,6 +117,20 @@ When noren starts, and when AeroSpace comes back, noren cannot know what ran bef
 rule runs `enter` if the focused window matches it, and `leave` if not. Write `leave` commands
 that do no harm when nothing was entered.
 
+## Trackpads
+
+The strip follows three-finger swipes on every trackpad, which needs the Input Monitoring
+permission. Turn off macOS's own three-finger swipe between full-screen apps (Trackpad settings,
+More Gestures), or both follow the same swipe.
+
+macOS stops sending a trackpad's touches after sleep, a screen lock, or the trackpad settings
+being applied again. noren attaches the trackpads afresh after the first two by itself. Whatever
+applies trackpad settings can have it do so too, by posting a Darwin notification:
+
+```sh
+notifyutil -p local.noren.reattach-trackpads
+```
+
 ## Logs
 
 ```sh
