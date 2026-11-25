@@ -6,5 +6,8 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   if !config.focusRules.isEmpty {
     parts.append(FocusRules(rules: config.focusRules, aeroSpace: aeroSpace))
   }
+  if config.strip.enable {
+    parts.append(Strip(aeroSpace: aeroSpace))
+  }
   return parts
 }
