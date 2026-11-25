@@ -22,9 +22,11 @@ let package = Package(
     // The app: AppKit, so on the main actor unless said otherwise
     .executableTarget(
       name: "Noren",
-      dependencies: ["NorenCore"],
+      dependencies: ["NorenCore", "NorenPrivate"],
       swiftSettings: approachableConcurrency + [.defaultIsolation(MainActor.self)]
     ),
+    // C declarations for the Dock protocol and the private macOS calls (its module.modulemap)
+    .systemLibrary(name: "NorenPrivate"),
     // What can be worked out without the screen, AeroSpace or macOS: kept apart so it is tested
     .target(
       name: "NorenCore",

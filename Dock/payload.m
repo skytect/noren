@@ -10,10 +10,10 @@
 // panel, is also hidden, by setting its
 // system alpha to 0: the window server's own factor on top of the alpha the app sets, the way
 // yabai's scripting addition hides a window while it animates (do_window_swap_proxy_in in
-// src/osax/payload.m). noren is told (kNORHeld, messages.h), and once AeroSpace has placed the
-// window noren asks for it back: at once, or faded in over kNORFade.
+// src/osax/payload.m). noren is told (NORMessageHeld, DockProtocol.h), and once AeroSpace has
+// placed the window noren asks for it back: at once, or faded in over NOR_FADE.
 //
-// A window never stays hidden: one held for kNORHoldLimit is shown regardless, one noren cannot be
+// A window never stays hidden: one held for NOR_HOLD_LIMIT is shown regardless, one noren cannot be
 // told about is shown at once, and while noren's port is missing (noren not running) no window is
 // hidden at all.
 //
@@ -22,7 +22,7 @@
 #import <Foundation/Foundation.h>
 #import <dlfcn.h>
 
-#import "messages.h"
+#import "DockProtocol.h"
 
 // The window server's notification of a new window
 static const uint32_t kWindowCreated = 1325;
@@ -117,14 +117,14 @@ static void SetSystemAlpha(uint32_t window, float alpha) {
 
 // Whether noren's port is there to be told of a hidden window
 static BOOL NorenListens(void) {
-  CFMessagePortRef port = CFMessagePortCreateRemote(NULL, (__bridge CFStringRef)kNORAppPort);
+  CFMessagePortRef port = CFMessagePortCreateRemote(NULL, CFSTR(NOR_APP_PORT));
   if (!port) return NO;
   CFRelease(port);
   return YES;
 }
 
 static BOOL TellNoren(NORMessage message, uint32_t window) {
-  CFMessagePortRef port = CFMessagePortCreateRemote(NULL, (__bridge CFStringRef)kNORAppPort);
+  CFMessagePortRef port = CFMessagePortCreateRemote(NULL, CFSTR(NOR_APP_PORT));
   if (!port) return NO;
   NSData *data = [NSData dataWithBytes:&window length:sizeof window];
   SInt32 status = CFMessagePortSendRequest(port, message, (__bridge CFDataRef)data, kSendTimeout, 0,
@@ -143,7 +143,7 @@ static void Show(uint32_t window, BOOL fade) {
     SetSystemAlpha(window, 1);
     return;
   }
-  int steps = MAX(1, (int)round(kNORFade / kFadeFrame));
+  int steps = MAX(1, (int)round(NOR_FADE / kFadeFrame));
   __block int step = 0;
   dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, gQueue);
   dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, (uint64_t)(kFadeFrame * NSEC_PER_SEC), 0);
@@ -159,7 +159,7 @@ static void Show(uint32_t window, BOOL fade) {
   dispatch_resume(timer);
 }
 
-// Keeps the just hidden `window` hidden until noren asks for it, or kNORHoldLimit has passed.
+// Keeps the just hidden `window` hidden until noren asks for it, or NOR_HOLD_LIMIT has passed.
 // Runs on gQueue.
 static void Hold(uint32_t window) {
   NSNumber *key = @(window);
@@ -170,11 +170,11 @@ static void Hold(uint32_t window) {
   }
   NSDate *since = [NSDate date];
   gHeld[key] = since;
-  if (!TellNoren(kNORHeld, window)) {
+  if (!TellNoren(NORMessageHeld, window)) {
     Show(window, NO);
     return;
   }
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kNORHoldLimit * NSEC_PER_SEC)), gQueue,
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NOR_HOLD_LIMIT * NSEC_PER_SEC)), gQueue,
                  ^{
                    if (gHeld[key] != since) return;
                    NSLog(@"noren: window %u was not placed in time; showing it", window);
@@ -208,13 +208,13 @@ static void WindowCreated(uint32_t event, void *data, size_t length, void *conte
   }
 }
 
-// noren's kNORShow and kNORReveal, on gQueue
+// noren's NORMessageShow and NORMessageReveal, on gQueue
 static CFDataRef Received(CFMessagePortRef port, SInt32 message, CFDataRef data, void *info) {
-  if ((message != kNORShow && message != kNORReveal) || !data) return NULL;
+  if ((message != NORMessageShow && message != NORMessageReveal) || !data) return NULL;
   NSData *bytes = (__bridge NSData *)data;
   const uint32_t *windows = bytes.bytes;
   for (NSUInteger i = 0; i < bytes.length / sizeof(uint32_t); i++) {
-    Show(windows[i], message == kNORReveal);
+    Show(windows[i], message == NORMessageReveal);
   }
   return NULL;
 }
@@ -250,12 +250,12 @@ __attribute__((constructor)) static void NORDockPayloadStart(void) {
   gHeld = [NSMutableDictionary dictionary];
   gFades = [NSMutableDictionary dictionary];
 
-  gPort = CFMessagePortCreateLocal(NULL, (__bridge CFStringRef)kNORDockPort, Received, NULL, NULL);
+  gPort = CFMessagePortCreateLocal(NULL, CFSTR(NOR_DOCK_PORT), Received, NULL, NULL);
   if (gPort) {
     CFMessagePortSetDispatchQueue(gPort, gQueue);
     gHides = YES;
   } else {
-    NSLog(@"noren: could not open %@; new windows show as they open", kNORDockPort);
+    NSLog(@"noren: could not open %@; new windows show as they open", @NOR_DOCK_PORT);
   }
 
   // The windows on screen, now and every kSweepInterval; each is tagged once while it stays

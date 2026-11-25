@@ -1,0 +1,6 @@
+// C declarations Swift reads: the Dock protocol, and the private macOS calls noren makes (one
+// header each, all in this directory)
+module NorenPrivate [system] {
+  umbrella "."
+  export *
+}

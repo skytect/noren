@@ -51,6 +51,7 @@ stdenv.mkDerivation (finalAttrs: {
   # The Dock is arm64e, so its payload and the loader that starts a thread in it are too
   postBuild = ''
     $CC -arch arm64e -O2 -fobjc-arc -Wall -Werror -shared -o dock-payload.dylib Dock/payload.m \
+      -I Sources/NorenPrivate \
       -framework Foundation -framework CoreGraphics
     $CC -arch arm64e -O2 -fobjc-arc -Wall -Werror -o noren-dock Dock/inject.m \
       -framework Foundation
