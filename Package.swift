@@ -14,6 +14,10 @@ let package = Package(
   products: [
     .executable(name: "noren", targets: ["Noren"])
   ],
+  dependencies: [
+    // TOML 1.1 into Codable types, pure Swift, MIT
+    .package(url: "https://github.com/dduan/TOMLDecoder", exact: "0.4.5")
+  ],
   targets: [
     // The app: AppKit, so on the main actor unless said otherwise
     .executableTarget(
@@ -24,6 +28,7 @@ let package = Package(
     // What can be worked out without the screen, AeroSpace or macOS: kept apart so it is tested
     .target(
       name: "NorenCore",
+      dependencies: ["TOMLDecoder"],
       swiftSettings: approachableConcurrency
     ),
     .testTarget(

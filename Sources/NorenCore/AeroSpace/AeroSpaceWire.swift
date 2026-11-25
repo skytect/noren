@@ -77,3 +77,31 @@ public struct AeroSpaceReader {
     return buffer.prefix(4).reversed().reduce(0) { $0 << 8 | UInt32($1) }
   }
 }
+
+extension AeroSpaceWire {
+  /// What AeroSpace's stderr says when a command about the focused window finds none
+  /// (noWindowIsFocused in AeroSpace's sources).
+  static let noWindowFocusedMessage = "No window is focused"
+
+  /// The output of the command whose answer frame is `json`.
+  public static func output(ofAnswer json: Data) throws(AeroSpaceError) -> String {
+    let answer: Answer
+    do {
+      answer = try JSONDecoder().decode(Answer.self, from: json)
+    } catch {
+      throw .malformed("an answer that is not JSON AeroSpace sends: \(error)")
+    }
+    guard answer.exitCode == 0 else {
+      if answer.stderr.hasPrefix(noWindowFocusedMessage) { throw .noWindowFocused }
+      throw .failed(exitCode: answer.exitCode, stderr: answer.stderr)
+    }
+    return answer.stdout
+  }
+
+  /// AeroSpace's ServerAnswer.
+  private struct Answer: Decodable {
+    let exitCode: Int32
+    let stdout: String
+    let stderr: String
+  }
+}

@@ -5,6 +5,7 @@
   stdenv,
   swift,
   swiftpm,
+  fetchSwiftPMDeps,
   librsvg,
   libicns,
 }:
@@ -13,7 +14,7 @@ let
   # Package.swift's platforms
   minMacos = "26.0";
 in
-stdenv.mkDerivation {
+stdenv.mkDerivation (finalAttrs: {
   pname = "noren";
   inherit version;
 
@@ -21,11 +22,17 @@ stdenv.mkDerivation {
     root = ../.;
     fileset = lib.fileset.unions [
       ../Package.swift
+      ../Package.resolved
       ../Sources
       ../Tests
       ../Dock
       ../assets
     ];
+  };
+
+  swiftpmDeps = fetchSwiftPMDeps {
+    inherit (finalAttrs) pname version src;
+    hash = "sha256-VU714uHAWvy5JChFjnQ2zsmlrSO8G1P2czVQcss8JCg=";
   };
 
   nativeBuildInputs = [
@@ -86,4 +93,4 @@ stdenv.mkDerivation {
     license = lib.licenses.mit;
     platforms = [ "aarch64-darwin" ];
   };
-}
+})

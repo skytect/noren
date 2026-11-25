@@ -31,6 +31,17 @@ swift test
 `swift build` builds the app's binary alone; the bundle, with the Dock payload, comes from
 `nix build`.
 
+## Configuration
+
+`~/.config/noren/noren.toml`; see [docs/configuration.md](docs/configuration.md). Without it,
+every part runs with its defaults.
+
+## Commands
+
+The same binary runs a few one-shot commands instead of the app: `noren sidecar` (connect or
+disconnect an iPad as a screen), `noren lock` (lock the screen) and `noren display-mode` (list or
+change the built-in screen's size). Any other argument prints the usage.
+
 ## The Dock payload
 
 `Dock/` holds an optional payload that noren puts into the Dock: it hides each new window until
