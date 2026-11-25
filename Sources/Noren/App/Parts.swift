@@ -8,7 +8,13 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   // Parts that reach one another do so through closures over these, so any of them can be off
   // Made last, below
   var appear: Appear?
+  let border =
+    config.border.enable
+    ? Border(config: config.border, aeroSpace: aeroSpace, isHeld: { appear?.holds($0) ?? false }) : nil
 
+  if let border {
+    parts.append(border)
+  }
   if config.dwindle.enable {
     parts.append(Dwindle(aeroSpace: aeroSpace, show: { appear?.show($0, fade: $1) }))
   }
@@ -18,13 +24,16 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   if config.restore.enable {
     parts.append(Restore(aeroSpace: aeroSpace))
   }
+  if config.drag.enable {
+    parts.append(Drag())
+  }
   if config.displays.enable {
     parts.append(Displays(config: config.displays))
   }
   // After every part that opens windows: the payload hides none of noren's own while Appear's port
   // is not there yet
   if config.appear.enable {
-    let made = Appear(config: config.appear, aeroSpace: aeroSpace, wakeBorder: {})
+    let made = Appear(config: config.appear, aeroSpace: aeroSpace, wakeBorder: { border?.wake() })
     appear = made
     parts.append(made)
   }
