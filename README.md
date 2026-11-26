@@ -57,6 +57,9 @@ noren asks for three permissions: Accessibility (window titles on the bar, the b
 closing extra windows on restore), Input Monitoring (trackpad swipes) and Screen Recording (the
 still cover over the screen while a new window is placed).
 
+[examples/nix-darwin](examples/nix-darwin) is one whole setup as a nix-darwin flake: noren with
+AeroSpace's bindings, kanata's keyboard layers and the macOS settings they need.
+
 ## Building
 
 ```sh

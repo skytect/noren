@@ -1,0 +1,336 @@
+# https://nikitabobko.github.io/AeroSpace/guide#config-version
+config-version = 2
+
+# Workspaces 1-20 always exist, empty or not (version 1 inferred this from the bindings): the
+# monitor assignments below and noren's swipe strip's fresh workspace
+# need the empty ones listed
+persistent-workspaces = [
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+]
+
+# You can use it to add commands that run after login to macOS user session.
+# 'start-at-login' needs to be 'true' for 'after-login-command' to work
+# Available commands: https://nikitabobko.github.io/AeroSpace/commands
+after-login-command = []
+
+# You can use it to add commands that run after AeroSpace startup.
+# 'after-startup-command' is run after 'after-login-command'
+# Available commands : https://nikitabobko.github.io/AeroSpace/commands
+after-startup-command = []
+
+# Started by a launchd agent instead (home.nix), from its signed copy
+start-at-login = false
+
+# Normalizations. See: https://nikitabobko.github.io/AeroSpace/guide#normalization
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+# See: https://nikitabobko.github.io/AeroSpace/guide#layouts
+# The 'accordion-padding' specifies the size of accordion padding
+# You can set 0 to disable the padding feature
+accordion-padding = 50
+
+# Possible values: tiles|accordion
+default-root-container-layout = 'tiles'
+
+# Possible values: horizontal|vertical|auto
+# 'auto' means: wide monitor (anything wider than high) gets horizontal orientation,
+#               tall monitor (anything higher than wide) gets vertical orientation
+default-root-container-orientation = 'auto'
+
+# The pointer follows keyboard focus through noren's pointer part, not
+# on-focus-changed and on-focused-monitor-changed: those cannot leave the pointer alone when a
+# workspace is picked with it on noren's bar
+
+# noren follows AeroSpace through `aerospace subscribe`; no
+# exec-on-workspace-change
+
+# You can effectively turn off macOS "Hide application" (cmd-h) feature by toggling this flag
+# Useful if you don't use this macOS feature, but accidentally hit cmd-h or cmd-alt-h key
+# Also see: https://nikitabobko.github.io/AeroSpace/goodness#disable-hide-app
+automatically-unhide-macos-hidden-apps = true
+
+# Possible values: (qwerty|dvorak)
+# See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
+[key-mapping]
+preset = 'qwerty'
+
+# 12 points between windows, none at the screen's edges (the screen around is black, and the
+# focused window's border is drawn inside its edge by noren).
+# The top leaves room for noren's bar, 54 points on every screen (the built-in screen's menu bar,
+# the tallest, which noren matches everywhere), over the macOS menu bar. AeroSpace does not keep
+# windows below the menu bar itself: on the built-in screen it starts them at the notch's 48
+# points, 6 short of the bar; on other screens, where macOS keeps no room for the menu bar, at the
+# top.
+[gaps]
+inner.horizontal = 12
+inner.vertical = 12
+outer.left = 0
+outer.bottom = 0
+outer.top = [{ monitor."built-in" = 6 }, 54]
+outer.right = 0
+
+# 'main' binding mode declaration
+# See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
+# 'main' binding mode must be always presented
+# Fallback value (if you omit the key): mode.main.binding = {}
+[mode.main.binding]
+# The modifier is Ctrl: kanata sends Ctrl from the Super position (home row a and ;) and Cmd from
+# the Ctrl position (kanata.kbd), so these are the Hyprland Super bindings and no
+# Mac app shortcut collides with them.
+# The Spotlight (magnifying glass) key arrives as F18 (kanata.kbd).
+# Bound here instead of in Vicinae because Vicinae's own global shortcut needs a per-build
+# Accessibility grant.
+f18 = 'exec-and-forget @profile@/bin/vicinae toggle'
+# Super+/ opens it too
+ctrl-slash = 'exec-and-forget @profile@/bin/vicinae toggle'
+# Super+\: lock the screen (as Super+Delete, hyprlock, on Hyprland)
+ctrl-backslash = 'exec-and-forget @profile@/bin/noren lock'
+# Super+V: clipboard history, as cliphist on Hyprland. Vicinae records the clipboard itself.
+ctrl-v = 'exec-and-forget @profile@/bin/vicinae cmd launch clipboard:history'
+
+# Terminal, as Super+Return on Hyprland: a new Ghostty window, or launch it if it is not running.
+# A terminal in tmux (fish starts it); with shift, a plain one: TMUX= tells fish to stay out of tmux
+ctrl-enter = '''exec-and-forget pgrep -xq ghostty && osascript -e 'tell application "Ghostty" to new window' || open -a Ghostty'''
+ctrl-shift-enter = '''exec-and-forget osascript -e 'tell application "Ghostty"' -e 'set cfg to new surface configuration' -e 'set environment variables of cfg to {"TMUX="}' -e 'new window with configuration cfg' -e 'end tell' '''
+
+# Browser, as Super+W and Super+Shift+W on Hyprland: a new Yab window, and a private one.
+ctrl-w = '''exec-and-forget pgrep -xq yab && osascript -e 'tell application "Yab" to make new window' -e 'tell application "Yab" to activate' || open -a Yab'''
+ctrl-shift-w = '''exec-and-forget osascript -e 'tell application "Yab" to make new window with properties {incognito:true}' -e 'tell application "Yab" to activate''''
+
+# Telegram: open it, or bring it forward if it is already running.
+ctrl-t = 'exec-and-forget open -a Telegram'
+
+# Jump Desktop (a Linux desktop's screen): open it, or bring it forward
+ctrl-i = 'exec-and-forget open -a "Jump Desktop"'
+
+# A new Finder window in the home folder (asks once for permission to control Finder)
+ctrl-e = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window to home' -e 'tell application "Finder" to activate' '''
+
+# The iPad as a second screen (Sidecar): connects, or disconnects when connected. P as in Windows'
+# Super+P for a second screen. (`noren sidecar`)
+ctrl-p = 'exec-and-forget @profile@/bin/noren sidecar'
+
+# Screenshots with Shottr, same keys as Hyprland.
+# F13 is what kanata sends for the Print key. The app is named by bundle id because macOS does not
+# register the shottr:// link type for an app that lives in the nix store; the id reaches the
+# running Shottr wherever its copy lives.
+ctrl-s = 'exec-and-forget open -g -b cc.ffitch.shottr shottr://grab/fullscreen'
+ctrl-shift-s = 'exec-and-forget open -g -b cc.ffitch.shottr shottr://grab/window/active'
+ctrl-alt-s = 'exec-and-forget open -g -b cc.ffitch.shottr shottr://grab/area'
+f13 = 'exec-and-forget open -g -b cc.ffitch.shottr shottr://grab/area'
+
+
+# Same bindings as Hyprland on Linux, with Ctrl standing in for Super. Not ported: Super+Tab, the media keys on Super+arrows/Space, and
+# Super+drag.
+# All possible keys: https://nikitabobko.github.io/AeroSpace/guide#key-mapping
+# All possible commands: https://nikitabobko.github.io/AeroSpace/commands
+
+# Closes the window (script in home.nix); noren keeps focus on the workspace if it was the last
+# window there (its stay part, told about this binding by stay.close-bindings)
+ctrl-q = 'exec-and-forget @home@/.local/bin/aerospace-close'
+
+# Across workspaces
+ctrl-1 = 'workspace 1'
+ctrl-2 = 'workspace 2'
+ctrl-3 = 'workspace 3'
+ctrl-4 = 'workspace 4'
+ctrl-5 = 'workspace 5'
+ctrl-6 = 'workspace 6'
+ctrl-7 = 'workspace 7'
+ctrl-8 = 'workspace 8'
+ctrl-9 = 'workspace 9'
+ctrl-0 = 'workspace 10'
+ctrl-shift-1 = ['move-node-to-workspace 1', 'workspace 1']
+ctrl-shift-2 = ['move-node-to-workspace 2', 'workspace 2']
+ctrl-shift-3 = ['move-node-to-workspace 3', 'workspace 3']
+ctrl-shift-4 = ['move-node-to-workspace 4', 'workspace 4']
+ctrl-shift-5 = ['move-node-to-workspace 5', 'workspace 5']
+ctrl-shift-6 = ['move-node-to-workspace 6', 'workspace 6']
+ctrl-shift-7 = ['move-node-to-workspace 7', 'workspace 7']
+ctrl-shift-8 = ['move-node-to-workspace 8', 'workspace 8']
+ctrl-shift-9 = ['move-node-to-workspace 9', 'workspace 9']
+ctrl-shift-0 = ['move-node-to-workspace 10', 'workspace 10']
+# The iPad's workspaces: Super+Alt+1..0 is 11..20
+ctrl-alt-1 = 'workspace 11'
+ctrl-alt-2 = 'workspace 12'
+ctrl-alt-3 = 'workspace 13'
+ctrl-alt-4 = 'workspace 14'
+ctrl-alt-5 = 'workspace 15'
+ctrl-alt-6 = 'workspace 16'
+ctrl-alt-7 = 'workspace 17'
+ctrl-alt-8 = 'workspace 18'
+ctrl-alt-9 = 'workspace 19'
+ctrl-alt-0 = 'workspace 20'
+ctrl-alt-shift-1 = ['move-node-to-workspace 11', 'workspace 11']
+ctrl-alt-shift-2 = ['move-node-to-workspace 12', 'workspace 12']
+ctrl-alt-shift-3 = ['move-node-to-workspace 13', 'workspace 13']
+ctrl-alt-shift-4 = ['move-node-to-workspace 14', 'workspace 14']
+ctrl-alt-shift-5 = ['move-node-to-workspace 15', 'workspace 15']
+ctrl-alt-shift-6 = ['move-node-to-workspace 16', 'workspace 16']
+ctrl-alt-shift-7 = ['move-node-to-workspace 17', 'workspace 17']
+ctrl-alt-shift-8 = ['move-node-to-workspace 18', 'workspace 18']
+ctrl-alt-shift-9 = ['move-node-to-workspace 19', 'workspace 19']
+ctrl-alt-shift-0 = ['move-node-to-workspace 20', 'workspace 20']
+ctrl-cmd-h = 'workspace prev'
+ctrl-cmd-l = 'workspace next'
+ctrl-cmd-shift-h = ['move-node-to-workspace prev', 'workspace prev']
+ctrl-cmd-shift-l = ['move-node-to-workspace next', 'workspace next']
+
+# Within a workspace, and past its edge onto the screen that lies that way (Dell above the
+# laptop, iPad to its right, kept there by noren's displays part)
+ctrl-h = 'focus --boundaries all-monitors-outer-frame left'
+ctrl-j = 'focus --boundaries all-monitors-outer-frame down'
+ctrl-k = 'focus --boundaries all-monitors-outer-frame up'
+ctrl-l = 'focus --boundaries all-monitors-outer-frame right'
+ctrl-shift-h = 'move --boundaries all-monitors-outer-frame left'
+ctrl-shift-j = 'move --boundaries all-monitors-outer-frame down'
+ctrl-shift-k = 'move --boundaries all-monitors-outer-frame up'
+ctrl-shift-l = 'move --boundaries all-monitors-outer-frame right'
+ctrl-alt-h = 'resize width -20'
+ctrl-alt-l = 'resize width +20'
+ctrl-alt-k = 'resize height -20'
+ctrl-alt-j = 'resize height +20'
+ctrl-alt-left = 'resize width -20'
+ctrl-alt-right = 'resize width +20'
+ctrl-alt-up = 'resize height -20'
+ctrl-alt-down = 'resize height +20'
+ctrl-esc = 'layout floating tiling'
+
+# AeroSpace-only extras
+alt-slash = 'layout tiles horizontal vertical'
+alt-comma = 'layout accordion horizontal vertical'
+# Alt+Tab and Alt+Shift+Tab (AeroSpace's defaults) are left to apps
+alt-shift-semicolon = 'mode service'
+
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main'] # reset layout
+f = [
+    'layout floating tiling',
+    'mode main',
+] # Toggle between floating and tiling layout
+backspace = ['close-all-windows-but-current', 'mode main']
+
+# sticky is not yet supported https://github.com/nikitabobko/AeroSpace/issues/2
+#s = ['layout sticky tiling', 'mode main']
+
+alt-shift-h = ['join-with left', 'mode main']
+alt-shift-j = ['join-with down', 'mode main']
+alt-shift-k = ['join-with up', 'mode main']
+alt-shift-l = ['join-with right', 'mode main']
+
+[workspace-to-monitor-force-assignment]
+# Monitor patterns match the screen's name (case-insensitive), first one present wins:
+# 1-5 on the laptop, 6-10 on the Dell, 11-20 on the iPad; without the Dell the iPad takes 6-10,
+# and without the iPad 11-20 stay on the laptop. Screen positions: noren's displays part (home.nix)
+1 = ['built-in', 'main']
+2 = ['built-in', 'main']
+3 = ['built-in', 'main']
+4 = ['built-in', 'main']
+5 = ['built-in', 'main']
+6 = ['AW2725Q', 'sidecar', 'built-in', 'main']
+7 = ['AW2725Q', 'sidecar', 'built-in', 'main']
+8 = ['AW2725Q', 'sidecar', 'built-in', 'main']
+9 = ['AW2725Q', 'sidecar', 'built-in', 'main']
+10 = ['AW2725Q', 'sidecar', 'built-in', 'main']
+11 = ['sidecar', 'built-in', 'main']
+12 = ['sidecar', 'built-in', 'main']
+13 = ['sidecar', 'built-in', 'main']
+14 = ['sidecar', 'built-in', 'main']
+15 = ['sidecar', 'built-in', 'main']
+16 = ['sidecar', 'built-in', 'main']
+17 = ['sidecar', 'built-in', 'main']
+18 = ['sidecar', 'built-in', 'main']
+19 = ['sidecar', 'built-in', 'main']
+20 = ['sidecar', 'built-in', 'main']
+
+# Small utility and settings windows float instead of tiling (Super+Esc toggles any window).
+[[on-window-detected]]
+if.app-id = 'com.1password.1password' # 1Password
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences' # System Settings
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder' # Finder
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.calculator' # Calculator
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Passwords' # Passwords
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.AppStore' # App Store
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.installer' # Installer
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.archiveutility' # Archive Utility
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.macpaw.site.theunarchiver' # The Unarchiver
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'cc.ffitch.shottr' # Shottr
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'pro.betterdisplay.BetterDisplay' # BetterDisplay
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.rogueamoeba.soundsource' # SoundSource
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'io.tailscale.ipn.macsys' # Tailscale
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.cloudflare.1dot1dot1dot1.macos' # Cloudflare WARP
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.logi.optionsplus' # Logi Options+
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'us.zoom.xos' # Zoom
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.sertacozercan.Kaset' # Kaset
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'ru.keepcoder.Telegram' # Telegram
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'net.whatsapp.WhatsApp' # WhatsApp
+run = 'layout floating'
+
+# Every other new window splits the window it opened next to, across that window's container, as
+# Hyprland's default layout does: noren's dwindle part does that, after the rules
+# above have floated their windows. It counts on these rules matching by app id only; a rule
+# matching the window title (if.window-title-regex-substring) could run after noren looks.
+
+# While a Jump Desktop session window (a Linux desktop's screen) is focused, noren puts AeroSpace in this mode,
+# which releases every binding, and stops kanata swapping Ctrl and Cmd, so the same keys reach
+# Hyprland there; focusing anything else restores both (its focus rule in home.nix). Only the
+# launcher key stays local, to leave the remote session.
+[mode.passthrough.binding]
+f18 = 'exec-and-forget @profile@/bin/vicinae toggle'

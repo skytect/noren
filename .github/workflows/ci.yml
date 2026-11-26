@@ -25,3 +25,17 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
+
+  example:
+    # examples/nix-darwin evaluates against this checkout's modules. Evaluation needs no Mac
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Evaluate
+        run: |
+          nix eval --raw "./examples/nix-darwin#darwinConfigurations.example.system.drvPath" \
+            --override-input noren "path:$GITHUB_WORKSPACE"

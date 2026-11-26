@@ -1,0 +1,322 @@
+;; kanata on a MacBook's built-in keyboard (external Corne keyboards are left alone; they do this
+;; in their own firmware). A snapshot of a config generated from layers shared with Linux hosts.
+;;
+;; - Home-row modifiers in the style of Miryoku: held, a/; are Super (sent as Ctrl, below), s/l
+;;   Alt, d/k Ctrl (sent as Cmd), f/j Shift; thumb keys held reach the media, navigation and
+;;   other layers. With a and s held, h/j/k/l repeat, for resizing windows in AeroSpace.
+;; - Ctrl and Cmd trade places in everything the layers send, so the keys work as on Linux: the
+;;   Ctrl position sends Cmd, which Mac apps take for copy and new tab, and the Super position
+;;   sends Ctrl, AeroSpace's modifier (aerospace.toml), which no Mac shortcut needs.
+;; - The top row sends its printed functions; the Spotlight key sends F18 (the launcher in
+;;   aerospace.toml) and Print sends F13.
+;; - A held s or l, alone for 150 ms, holds Fn for push-to-talk dictation; tapped soon after, it
+;;   sends Return to send what was dictated.
+;; - A second copy of every layer, suffixed -jump, without the Ctrl/Cmd swap: noren's focus rule
+;;   (home.nix) switches to it over kanata's TCP port while a remote Linux session has focus.
+
+(defcfg
+  process-unmapped-keys yes
+  concurrent-tap-hold yes
+  macos-dev-names-exclude (
+    "foostan Corne v4"
+    "Eyelash Corne Keyboard"
+    "ZMK Project Eyelash Corne Keyboard"
+  )
+)
+
+(defoverrides
+  (lmet tab) (lctl tab)
+  (rmet tab) (rctl tab)
+  (lmet lsft tab) (lctl lsft tab)
+  (rmet lsft tab) (rctl lsft tab)
+)
+
+(defvirtualkeys
+  dictation-recent nop0
+  dictation-done (hold-for-duration 1000 dictation-recent)
+)
+
+(defsrc
+  q w e r t y u i o p
+  a s d f g h j k l ;
+  z x c v b n m , . /
+  lalt spc lmet rmet ralt left
+  ;; others
+  caps f24
+  ;; top row
+  f1 f2 f4 f7 f8 f9 f10 f11 f12
+  lctl
+)
+
+;; Based on https://github.com/manna-harbour/miryoku/tree/master/docs/reference
+(deflayer weird
+  _ _ _ _ _ _ _ _ _ _
+  @a @s @d @f _ @h @j @k @l @;
+  _ _ _ _ _ _ _ _ _ _
+  @esc @spc @tab @ret @bspc @del
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+(deflayer weird-media
+  XX   XX   XX   XX   XX _    _      _    _    _
+  lctl lalt lmet lsft XX prev voldwn volu next _
+  XX   XX   XX   XX   XX _    0      1    2    3
+  @esc XX XX _ pp mute
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+(deflayer weird-nav
+  XX   XX   XX   XX   XX XX   XX   XX   XX    XX
+  lctl lalt lmet lsft XX left down up   right caps
+  XX   XX   XX   XX   XX home pgdn pgup end   ins
+  XX @spc XX _ _ _
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+(deflayer weird-mouse
+  XX   XX   XX   XX   XX _   _   _   _   _
+  lctl lalt lmet lsft XX @msl @msd @msu @msr mbck
+  XX   XX   XX   XX   XX mwr  mwu  mwd  mwl  mfwd
+  XX XX @tab _ mlft mrgt
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+(deflayer weird-sym
+  S-[ S-7 S-8 S-9 S-] XX XX   XX   XX   XX
+  S-' S-4 S-5 S-6 S-= XX rsft rmet ralt rctl
+  S-` S-1 S-2 S-3 S-\ XX XX   XX   XX   XX
+  S-9 S-0 S-- @ret XX XX
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+(deflayer weird-num
+  [ 7 8 9 ] XX XX   XX   XX   XX
+  ' 4 5 6 = XX rsft rmet ralt rctl
+  ` 1 2 3 \ XX XX   XX   XX   XX
+  . 0 - XX @bspc XX
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+(deflayer weird-fun
+  f12 f7 f8 f9 f13  XX XX   XX   XX   XX
+  f11 f4 f5 f6 scrlck XX rsft rmet ralt rctl
+  f10 f1 f2 f3 pause  XX XX   XX   XX   XX
+  cmp _ _ XX XX @del
+  ;; others
+  esc @to-normal
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+
+(deflayer normal
+  _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _
+  ;; others
+  esc @to-weird
+  brdn brup f18 prev pp next mute voldwn volu lmet
+)
+
+(defvar
+  fast-typing-time 150
+  fast-typing-keys 3
+  tap-repress-time 200
+  ;; Every hold-tap waits this long before it holds, as on the Corne (zmk-config, 200 ms)
+  hold-time 200
+  ;; d holds Ctrl only once another key comes down and goes up while it is held (see the alias)
+  d-hold-time 10000
+
+  ftt $fast-typing-time
+  ftk $fast-typing-keys
+  trt $tap-repress-time
+)
+(deftemplate tapholdmod (char mod)
+  ;; Why multi f24: https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold
+  (multi
+    f24
+    (switch
+      ;; We are typing fast: $ftk keys typed in the last $ftt ms
+      ((key-timing $ftk less-than $ftt)) $char break
+      () (tap-hold-release $trt $hold-time $char $mod) break
+    )
+  )
+)
+
+;; Home row mods take the fast-typing shortcut too, with one exception. Every one of these keys
+;; presses f24 at once (see tapholdmod), and f24 counts as a typed key, so a second or third mod
+;; pressed right after the first (a+f, a+d+f, in any order) looked like fast typing and came out
+;; as a letter. $chord is true while another mod of the same hand is physically down; the key
+;; then skips the shortcut and resolves as a normal tap-hold. The cost: the second key of a
+;; same-hand home-row roll ("as", "df") is typed on release rather than on press.
+(deftemplate hrm (char mod chord)
+  (multi
+    f24
+    (switch
+      ((and (key-timing $ftk less-than $ftt) (not $chord))) $char break
+      () (tap-hold-release $trt $hold-time $char $mod) break
+    )
+  )
+)
+(defvar
+  a-chord (or (input real s) (input real d) (input real f))
+  s-chord (or (input real a) (input real d) (input real f))
+  d-chord (or (input real a) (input real s) (input real f))
+  f-chord (or (input real a) (input real s) (input real d))
+  j-chord (or (input real k) (input real l) (input real ;))
+  k-chord (or (input real j) (input real l) (input real ;))
+  l-chord (or (input real j) (input real k) (input real ;))
+  ;-chord (or (input real j) (input real k) (input real l))
+)
+
+(defalias
+  ;; Switching Layers
+  to-normal (layer-switch normal)
+  to-weird (layer-switch weird)
+  esc (t! tapholdmod esc (layer-while-held weird-media))
+  spc (t! tapholdmod spc (layer-while-held weird-nav))
+  tab (t! tapholdmod tab (layer-while-held weird-mouse))
+  ret (t! tapholdmod ret (layer-while-held weird-sym))
+  bspc (t! tapholdmod bspc (layer-while-held weird-num))
+  del (t! tapholdmod del (layer-while-held weird-fun))
+
+  ;; mouse
+  msu (movemouse-accel-up 10 300 1 20)
+  msd (movemouse-accel-down 10 300 1 20)
+  msl (movemouse-accel-left 10 300 1 20)
+  msr (movemouse-accel-right 10 300 1 20)
+
+  ;; h on its own (the Mac gives it, and j/k/l, a repeat for window resizing)
+  h (switch ((and (input real a) (input real s))) (macro-repeat-release-cancel h 50) break () h break)
+
+  ;; Home Row Mods
+  a (t! hrm a lctl $a-chord)
+  s (multi f24 (switch ((input virtual dictation-recent)) (tap-hold-release-timeout $trt 150 (macro 150 ret) lalt (switch ($s-chord) lalt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break ((and (key-timing $ftk less-than $ftt) (not $s-chord))) s break () (tap-hold-release-timeout $trt 150 s lalt (switch ($s-chord) lalt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break))
+  d (multi
+      f24
+      (switch
+        ((and (key-timing $ftk less-than $ftt) (not $d-chord))) d break
+        () (tap-hold-release-keys $trt $d-hold-time d lmet (c)) break
+      )
+    )
+  f (t! hrm f lsft $f-chord)
+  j (switch ((and (input real a) (input real s))) (macro-repeat-release-cancel j 50) break () (t! hrm j rsft $j-chord) break)
+  k (switch ((and (input real a) (input real s))) (macro-repeat-release-cancel k 50) break () (t! hrm k rmet $k-chord) break)
+  l (switch ((and (input real a) (input real s))) (macro-repeat-release-cancel l 50) break () (multi f24 (switch ((input virtual dictation-recent)) (tap-hold-release-timeout $trt 150 (macro 150 ret) ralt (switch ($l-chord) ralt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break ((and (key-timing $ftk less-than $ftt) (not $l-chord))) l break () (tap-hold-release-timeout $trt 150 l ralt (switch ($l-chord) ralt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break)) break)
+  ; (t! hrm ; rctl $;-chord)
+)
+
+;; --- second copy of the layers, generated by kanata-jump-layers.py ---
+(deflayer weird-jump
+  _ _ _ _ _ _ _ _ _ _
+  @a-jump @s-jump @d-jump @f-jump _ @h-jump @j-jump @k-jump @l-jump @;-jump
+  _ _ _ _ _ _ _ _ _ _
+  @esc-jump @spc-jump @tab-jump @ret-jump @bspc-jump @del-jump
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer weird-media-jump
+  XX   XX   XX   XX   XX _    _      _    _    _
+  lmet lalt lctl lsft XX prev voldwn volu next _
+  XX   XX   XX   XX   XX _    0      1    2    3
+  @esc-jump XX XX _ pp mute
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer weird-nav-jump
+  XX   XX   XX   XX   XX XX   XX   XX   XX    XX
+  lmet lalt lctl lsft XX left down up   right caps
+  XX   XX   XX   XX   XX home pgdn pgup end   ins
+  XX @spc-jump XX _ _ _
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer weird-mouse-jump
+  XX   XX   XX   XX   XX _   _   _   _   _
+  lmet lalt lctl lsft XX @msl-jump @msd-jump @msu-jump @msr-jump mbck
+  XX   XX   XX   XX   XX mwr  mwu  mwd  mwl  mfwd
+  XX XX @tab-jump _ mlft mrgt
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer weird-sym-jump
+  S-[ S-7 S-8 S-9 S-] XX XX   XX   XX   XX
+  S-' S-4 S-5 S-6 S-= XX rsft lctl ralt lmet
+  S-` S-1 S-2 S-3 S-\ XX XX   XX   XX   XX
+  S-9 S-0 S-- @ret-jump XX XX
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer weird-num-jump
+  [ 7 8 9 ] XX XX   XX   XX   XX
+  ' 4 5 6 = XX rsft lctl ralt lmet
+  ` 1 2 3 \ XX XX   XX   XX   XX
+  . 0 - XX @bspc-jump XX
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer weird-fun-jump
+  f12 f7 f8 f9 f13  XX XX   XX   XX   XX
+  f11 f4 f5 f6 scrlck XX rsft lctl ralt lmet
+  f10 f1 f2 f3 pause  XX XX   XX   XX   XX
+  cmp _ _ XX XX @del-jump
+  ;; others
+  esc @to-normal-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(deflayer normal-jump
+  _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _
+  ;; others
+  esc @to-weird-jump
+  brdn brup f18 prev pp next mute voldwn volu lctl
+)
+(defalias
+  ;; Switching Layers
+  to-normal-jump (layer-switch normal-jump)
+  to-weird-jump (layer-switch weird-jump)
+  esc-jump (t! tapholdmod esc (layer-while-held weird-media-jump))
+  spc-jump (t! tapholdmod spc (layer-while-held weird-nav-jump))
+  tab-jump (t! tapholdmod tab (layer-while-held weird-mouse-jump))
+  ret-jump (t! tapholdmod ret (layer-while-held weird-sym-jump))
+  bspc-jump (t! tapholdmod bspc (layer-while-held weird-num-jump))
+  del-jump (t! tapholdmod del (layer-while-held weird-fun-jump))
+
+  ;; mouse
+  msu-jump (movemouse-accel-up 10 300 1 20)
+  msd-jump (movemouse-accel-down 10 300 1 20)
+  msl-jump (movemouse-accel-left 10 300 1 20)
+  msr-jump (movemouse-accel-right 10 300 1 20)
+
+  ;; h on its own (the Mac gives it, and j/k/l, a repeat for window resizing)
+  h-jump h
+
+  ;; Home Row Mods
+  a-jump (t! hrm a lmet $a-chord)
+  s-jump (multi f24 (switch ((input virtual dictation-recent)) (tap-hold-release-timeout $trt 150 (macro 150 ret) lalt (switch ($s-chord) lalt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break ((and (key-timing $ftk less-than $ftt) (not $s-chord))) s break () (tap-hold-release-timeout $trt 150 s lalt (switch ($s-chord) lalt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break))
+  d-jump (multi
+      f24
+      (switch
+        ((and (key-timing $ftk less-than $ftt) (not $d-chord))) d break
+        () (tap-hold-release-keys $trt $d-hold-time d lctl (c)) break
+      )
+    )
+  f-jump (t! hrm f lsft $f-chord)
+  j-jump (t! hrm j rsft $j-chord)
+  k-jump (t! hrm k lctl $k-chord)
+  l-jump (multi f24 (switch ((input virtual dictation-recent)) (tap-hold-release-timeout $trt 150 (macro 150 ret) ralt (switch ($l-chord) ralt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break ((and (key-timing $ftk less-than $ftt) (not $l-chord))) l break () (tap-hold-release-timeout $trt 150 l ralt (switch ($l-chord) ralt break () (multi fn (on-release tap-vkey dictation-done)) break) reset-timeout-on-press) break))
+  ;-jump (t! hrm ; lmet $;-chord)
+)
