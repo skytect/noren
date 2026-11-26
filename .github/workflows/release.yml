@@ -50,14 +50,19 @@ jobs:
           security unlock-keychain -p "$password" "$keychain"
           printf '%s\n' "$SIGNING_KEY" > "$RUNNER_TEMP/key.pem"
           printf '%s\n' "$SIGNING_CERT" > "$RUNNER_TEMP/cert.pem"
-          security import "$RUNNER_TEMP/key.pem" -k "$keychain" -T /usr/bin/codesign
-          security import "$RUNNER_TEMP/cert.pem" -k "$keychain"
+          security import "$RUNNER_TEMP/key.pem" -k "$keychain" -T /usr/bin/codesign > /dev/null
+          security import "$RUNNER_TEMP/cert.pem" -k "$keychain" > /dev/null
           rm "$RUNNER_TEMP/key.pem"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
+          # On the search list, and named by its SHA-1: a lookup by name finds no self-signed
+          # identity, which macOS does not trust
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -p codesigning "$keychain"
+          identity=$(openssl x509 -in "$RUNNER_TEMP/cert.pem" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d :)
 
           cp -R result/Applications/Noren.app .
           chmod -R u+w Noren.app
-          codesign --force --deep --keychain "$keychain" --sign noren Noren.app
+          codesign --force --deep --keychain "$keychain" --sign "$identity" Noren.app
           codesign --verify --deep --strict Noren.app
           codesign --display --verbose=2 Noren.app
           security delete-keychain "$keychain"
