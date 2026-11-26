@@ -26,8 +26,11 @@ in
   home.stateVersion = "26.05";
 
   # AeroSpace: the CLI from the package, the app from its signed copy, which keeps its
-  # Accessibility grant across updates
-  home.packages = [ pkgs.aerospace ];
+  # Accessibility grant across updates. Vicinae: below
+  home.packages = [
+    pkgs.aerospace
+    pkgs.vicinae
+  ];
   home.file.".aerospace.toml".source = pkgs.replaceVars ./aerospace.toml {
     inherit profile;
     home = "/Users/${username}";
@@ -45,6 +48,44 @@ in
   # AeroSpace reads its config only at start and on reload-config
   home.activation.reloadAerospaceConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     run ${aerospace} reload-config 2>/dev/null || true
+  '';
+
+  # Vicinae, the launcher (Raycast's place): apps, clipboard history, calculator. The Spotlight
+  # key (F18 from kanata), Ctrl+/ and Ctrl+V open it through AeroSpace (aerospace.toml). It runs as
+  # a launchd agent: home-manager's programs.vicinae is Linux-only.
+  launchd.agents.vicinae = {
+    enable = true;
+    config = {
+      ProgramArguments = [ "${pkgs.vicinae}/Applications/Vicinae.app/Contents/MacOS/Vicinae" ];
+      RunAtLoad = true;
+      KeepAlive = true;
+      ProcessType = "Interactive";
+      LimitLoadToSessionType = "Aqua";
+    };
+  };
+  # Vicinae owns settings.json (its settings window writes there), so the settings kept here live
+  # in nix.json, which settings.json imports
+  home.file.".config/vicinae/nix.json".text = builtins.toJSON {
+    # Without kanata's F18, its own shortcut
+    global_shortcuts.toggle = "alt+space";
+    # Search aliases; apps are keyed by bundle id
+    providers.applications.entrypoints = {
+      "net.whatsapp.WhatsApp".alias = "wa";
+      "ru.keepcoder.Telegram".alias = "tg";
+    };
+  };
+  home.activation.vicinaeImport = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    settings="$HOME/.config/vicinae/settings.json"
+    if [ ! -e "$settings" ]; then
+      run mkdir -p "$HOME/.config/vicinae"
+      run sh -c 'printf "{\n   \"imports\": [\"./nix.json\"]\n}\n" > "$1"' sh "$settings"
+    elif ! grep -q 'nix\.json' "$settings"; then
+      run /usr/bin/sed -i "" -E '1,/^\{/ s|^\{|{\n   "imports": ["./nix.json"],|' "$settings"
+    fi
+    # Vicinae adds itself as a login item on its first start unless this marker exists. That item
+    # would keep the store path it had then, and start an old second copy beside the agent's
+    run mkdir -p "$HOME/.local/state/vicinae"
+    run touch "$HOME/.local/state/vicinae/login-item-registered"
   '';
 
   # Ctrl+Q (aerospace.toml): close the focused window. A script rather than AeroSpace's `close`,

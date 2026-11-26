@@ -3,15 +3,16 @@
 One person's setup, as a working [nix-darwin](https://github.com/nix-darwin/nix-darwin) flake: a
 MacBook that behaves like a Linux desktop running [Hyprland](https://hyprland.org), with
 [AeroSpace](https://github.com/nikitabobko/AeroSpace) tiling the windows,
-[kanata](https://github.com/jtroo/kanata) remapping the keyboard, and noren drawing the bar,
-the workspace strip and the border. It is a snapshot, refreshed now and then, not a template
+[kanata](https://github.com/jtroo/kanata) remapping the keyboard,
+[Vicinae](https://github.com/vicinaehq/vicinae) as the launcher, and noren drawing the bar, the
+workspace strip and the border. It is a snapshot, refreshed now and then, not a template
 kept in step with every change; take the parts you want.
 
 | File | |
 | --- | --- |
 | [`flake.nix`](flake.nix) | The inputs and the one `darwinConfigurations.example`; your account name goes here |
 | [`darwin.nix`](darwin.nix) | macOS's settings, kanata and its driver, noren's Dock payload |
-| [`home.nix`](home.nix) | AeroSpace, noren and its settings (`noren.toml`) |
+| [`home.nix`](home.nix) | AeroSpace, Vicinae, noren and its settings (`noren.toml`) |
 | [`aerospace.toml`](aerospace.toml) | AeroSpace's config: the key bindings, workspaces, floating apps |
 | [`kanata.kbd`](kanata.kbd) | kanata's config: home-row modifiers and the Ctrl/Cmd trade |
 | [`signing.nix`](signing.nix) | Stable signatures, so macOS's permissions survive updates |
@@ -36,11 +37,18 @@ Spotlight key sends F18, which opens the launcher.
 | Ctrl+Cmd+H/L | The previous or next workspace |
 | Ctrl+Q | Close the window (focus stays on the workspace) |
 | Ctrl+Esc | Float or tile the window |
+| Spotlight key, Ctrl+/ | Vicinae, the launcher |
+| Ctrl+V | Vicinae's clipboard history |
 | Ctrl+Return, Ctrl+W | A terminal, a browser window |
 | Ctrl+P | Connect or disconnect the iPad as a screen (`noren sidecar`) |
 | Ctrl+\\ | Lock the screen (`noren lock`) |
 | Three fingers left/right | The next or previous workspace (noren's strip) |
 | Ctrl+drag | Move a window from anywhere in it (noren) |
+
+**The launcher.** Vicinae replaces Spotlight and Raycast: apps, clipboard history, a
+calculator. It runs as a launchd agent, and AeroSpace opens it, so its key works the same in
+every app. Its settings window owns `settings.json`, so the settings kept in nix go in a
+`nix.json` it imports. The Dock keeps nothing pinned: apps open from Vicinae.
 
 **The screens.** Workspaces 1-5 belong to the laptop, 6-10 to a monitor and 11-20 to an iPad,
 falling back to the screens that are there. noren keeps the monitor above the laptop and the
@@ -75,5 +83,5 @@ certificate made on the Mac, so a nix update does not make macOS ask again.
 5. For the Dock payload, turn off part of System Integrity Protection
    ([docs/dock.md](../../docs/dock.md)). Without it, the rest works.
 
-The apps the bindings open (Ghostty, Yab, Telegram, Shottr, Vicinae, Jump Desktop) are not
+The other apps the bindings open (Ghostty, Yab, Telegram, Shottr, Jump Desktop) are not
 installed by this flake; swap in your own.
