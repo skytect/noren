@@ -92,6 +92,10 @@ Each `[[displays.place]]` has:
 
 A display that is connected and out of place is moved back after any change to the screens.
 
+The bar paints the wallpaper under itself, over the menu bar. For a dynamic wallpaper that
+changes with the time of day, it paints the frame macOS shows at the time; one that follows the
+sun's position or the appearance shows its first frame there.
+
 ## `[restore]`
 
 While noren runs, it keeps a snapshot of the running apps and each window's workspace in

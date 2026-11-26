@@ -5,6 +5,8 @@
 // a panel over the menu bar, painting what is behind it: the wallpaper as the desktop fills the
 // screen, and over it a black layer that fades with the backdrop.
 import AppKit
+import ImageIO
+import NorenCore
 import QuartzCore
 
 final class BarScreen {
@@ -26,7 +28,10 @@ final class BarScreen {
   private let screen: NSScreen
   /// The screen's wallpaper, the whole screen of it, its top under the bar.
   private let wallpaper = CALayer()
-  private var wallpaperURL: URL?
+  /// The wallpaper and, for one that changes with the time of day, the frame the layer shows
+  private var shown: (url: URL?, frame: Int)?
+  /// Shows the next frame of a wallpaper that changes with the time of day, when it is due
+  private var nextFrame: Timer?
   /// Over the wallpaper in the bar, shown with the backdrop.
   private let black = CALayer()
   private let view: BarView
@@ -70,6 +75,7 @@ final class BarScreen {
   }
 
   func close() {
+    nextFrame?.invalidate()
     panel.close()
     backdrop.close()
   }
@@ -94,14 +100,30 @@ final class BarScreen {
   }
 
   /// Paints the screen's wallpaper as it is now. It changes under noren: the displays part sets it
-  /// after the bar has started, and System Settings sets it at any time.
+  /// after the bar has started, System Settings sets it at any time, and a dynamic wallpaper
+  /// changes frame with the time of day.
   private func showCurrentWallpaper() {
     let url = NSWorkspace.shared.desktopImageURL(for: screen)
-    guard url != wallpaperURL else { return }
-    wallpaperURL = url
+    let wallpaperFile = Wallpaper.read(url)
+    var frame = 0
+    nextFrame?.invalidate()
+    nextFrame = nil
+    if let schedule = wallpaperFile?.schedule {
+      let midnight = Calendar.current.startOfDay(for: Date())
+      let now = Date().timeIntervalSince(midnight) / 86400
+      frame = schedule.frame(at: now)
+      let due = midnight.addingTimeInterval(schedule.nextChange(after: now) * 86400)
+      nextFrame = Timer.scheduledTimer(
+        withTimeInterval: due.timeIntervalSinceNow, repeats: false
+      ) { [weak self] _ in
+        MainActor.assumeIsolated { self?.showCurrentWallpaper() }
+      }
+    }
+    guard shown?.url != url || shown?.frame != frame else { return }
+    shown = (url, frame)
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    wallpaper.contents = Wallpaper.image(url)
+    wallpaper.contents = wallpaperFile?.image(frame)
     CATransaction.commit()
   }
 
@@ -128,17 +150,38 @@ final class BarScreen {
   }
 }
 
-/// The wallpaper image, kept once read: a whole screen's image takes a while to decode.
-private enum Wallpaper {
-  private static var url: URL?
-  private static var image: NSImage?
+/// The wallpaper file, kept once read: a whole screen's image takes a while to decode. Its image
+/// for one frame is kept too, the frame the screens show.
+private final class Wallpaper {
+  private static var last: Wallpaper?
 
-  static func image(_ url: URL?) -> NSImage? {
+  let url: URL
+  /// For a wallpaper that changes with the time of day
+  let schedule: WallpaperSchedule?
+  private let source: CGImageSource
+  private var decoded: (frame: Int, image: CGImage?)?
+
+  private init?(url: URL) {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+    self.url = url
+    self.source = source
+    schedule = CGImageSourceCopyMetadataAtIndex(source, 0, nil)
+      .flatMap {
+        CGImageMetadataCopyStringValueWithPath($0, nil, "apple_desktop:h24" as CFString)
+      }
+      .flatMap { WallpaperSchedule(h24: $0 as String) }
+  }
+
+  static func read(_ url: URL?) -> Wallpaper? {
     guard let url else { return nil }
-    if url != self.url {
-      self.url = url
-      image = NSImage(contentsOf: url)
+    if last?.url != url { last = Wallpaper(url: url) }
+    return last
+  }
+
+  func image(_ frame: Int) -> CGImage? {
+    if decoded?.frame != frame {
+      decoded = (frame, CGImageSourceCreateImageAtIndex(source, frame, nil))
     }
-    return image
+    return decoded?.image
   }
 }
