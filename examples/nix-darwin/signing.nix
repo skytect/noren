@@ -13,19 +13,24 @@
   ...
 }:
 let
-  # Each program: what to copy from the store, where the signed copy lives, and the launchd job to
-  # restart onto a new copy (gui/UID/… for an agent, system/… for a daemon)
+  # Each program: what to copy from the store, where the signed copy lives, and the launchd jobs to
+  # restart onto a new copy, in order (gui/UID/… for an agent, system/… for a daemon)
   programs = {
-    # With the AeroSpace inside it, signed with it
+    # With the AeroSpace inside it, signed with it. The Dock restarts too, so noren-dock puts the
+    # new payload into it: activation's own Dock restart (after the defaults) comes before this
+    # copy, and would load the old one
     noren = {
       source = "${pkgs.noren}/Applications/Noren.app";
       path = "/Applications/Noren.app";
-      restart = "gui/$uid/org.nix-community.home.noren";
+      restart = [
+        "gui/$uid/org.nix-community.home.noren"
+        "gui/$uid/com.apple.Dock.agent"
+      ];
     };
     kanata = {
       source = lib.getExe pkgs.kanata;
       path = "/Library/NixSigned/kanata";
-      restart = "system/org.nixos.kanata";
+      restart = [ "system/org.nixos.kanata" ];
     };
   };
 
@@ -87,7 +92,9 @@ let
     ${lib.concatStrings (
       lib.mapAttrsToList (name: p: ''
         if sign_copy ${name} "${p.source}" "${p.path}"; then
-          launchctl kickstart -k "${p.restart}" 2>/dev/null || true
+          ${lib.concatMapStrings (job: ''
+            launchctl kickstart -k "${job}" 2>/dev/null || true
+          '') p.restart}
         fi
       '') programs
     )}
