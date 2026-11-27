@@ -18,6 +18,11 @@
 // its close button, through Accessibility. Then the app is shown again. Apps not in the snapshot,
 // or started before noren got to them, are never touched, nor is a window that opens after its
 // app has settled.
+//
+// AeroSpace restarting (an update) loses its workspaces too: the new process puts every window
+// where its rules say. Each snapshot also records every window's workspace by window server id
+// (WorkspacePlacements), with AeroSpace's process; when noren connects to a new AeroSpace process,
+// the windows go back. Until then, snapshots under the new process leave that record alone.
 import AppKit
 import NorenCore
 import NorenPrivate
@@ -62,6 +67,8 @@ final class Restore: Part {
   private var snapshotPending = false
   /// When macOS announced the session's end
   private var ending: Date?
+  /// Every window's workspace, and the AeroSpace process they were read from
+  private var placements: (aeroSpace: pid_t, windows: WorkspacePlacements)?
 
   private static let snapshotURL = URL.applicationSupportDirectory
     .appending(components: "noren", "snapshot.json")
@@ -96,6 +103,8 @@ final class Restore: Part {
       launched = true
       for app in restoring.values { launch(app) }
       if restoring.isEmpty { scheduleSnapshot() }
+    case .connected:
+      putBack()
     case .windowDetected(_, _, let appBundleId?, _):
       if launched, let app = restoring[appBundleId], !app.settling {
         scheduleSettle(app, after: settle)
@@ -159,6 +168,11 @@ final class Restore: Part {
         log.error("could not list the windows: \(error, privacy: .public)")
         windows = nil
       }
+      if let windows, let pid = Self.aeroSpacePid(),
+        placements == nil || placements?.aeroSpace == pid
+      {
+        placements = (pid, WorkspacePlacements(windows))
+      }
       if let windows {
         last = RestoreSnapshot(
           boot: Self.bootSession(), apps: apps,
@@ -172,6 +186,46 @@ final class Restore: Part {
       if ending {
         log.info("the session is ending: snapshot of \(snapshot.apps.count) apps kept")
       }
+    }
+  }
+
+  /// The running AeroSpace's process
+  private static func aeroSpacePid() -> pid_t? {
+    NSRunningApplication.runningApplications(withBundleIdentifier: "bobko.aerospace").first?
+      .processIdentifier
+  }
+
+  /// Once AeroSpace is a new process, puts each window back on the workspace it had in the last
+  private func putBack() {
+    following = Task { [previous = following] in
+      await previous?.value
+      guard let recorded = placements, let pid = Self.aeroSpacePid(), recorded.aeroSpace != pid
+      else { return }
+      let windows: [ListedWindow]
+      do {
+        windows = try await aeroSpace.run(
+          ["list-windows", "--all", "--json", "--format", ListedWindow.format],
+          as: [ListedWindow].self)
+      } catch {
+        // Not stuck on a record no snapshot may replace: the next one starts afresh
+        placements = nil
+        log.error("could not list the windows to put back: \(error, privacy: .public)")
+        return
+      }
+      var moved = 0
+      for move in recorded.windows.moves(windows) {
+        do {
+          _ = try await aeroSpace.run(
+            ["move-node-to-workspace", "--window-id", String(move.windowId), "--", move.workspace])
+          moved += 1
+        } catch {
+          log.error(
+            "could not put window \(move.windowId) back on \(move.workspace, privacy: .public): \(error, privacy: .public)"
+          )
+        }
+      }
+      placements = (pid, recorded.windows)
+      log.info("AeroSpace restarted: \(moved) windows back on their workspaces")
     }
   }
 
