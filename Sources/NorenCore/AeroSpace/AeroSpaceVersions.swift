@@ -15,7 +15,12 @@ public struct AeroSpaceVersions: Equatable, Sendable {
     var app: String?
     for line in output.split(separator: "\n") {
       if let value = Self.value(of: "aerospace CLI client version:", in: line) { command = value }
-      if let value = Self.value(of: "AeroSpace.app server version:", in: line) { app = value }
+      // "Unknown. The server is not responding" while none answers
+      if let value = Self.value(of: "AeroSpace.app server version:", in: line),
+        !value.hasPrefix("Unknown")
+      {
+        app = value
+      }
     }
     guard let command else { return nil }
     self.command = command

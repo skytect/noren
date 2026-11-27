@@ -35,6 +35,18 @@ import Testing
     #expect(versions.appIsOtherBuild == false)
   }
 
+  @Test func `an app not responding is no other build`() throws {
+    let versions = try #require(
+      AeroSpaceVersions(
+        output: """
+          aerospace CLI client version: 0.21.3-Beta d69a64d833ca2cfe0e088cfae8e5e9751ec9eff3
+          AeroSpace.app server version: Unknown. The server is not responding
+          """))
+
+    #expect(versions.app == nil)
+    #expect(versions.appIsOtherBuild == false)
+  }
+
   @Test func `output without the command's version is none`() {
     #expect(AeroSpaceVersions(output: "Can't connect to AeroSpace server") == nil)
   }
