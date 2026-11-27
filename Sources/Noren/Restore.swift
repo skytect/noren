@@ -289,7 +289,11 @@ final class Restore: Part {
       }
       for index in matching.unmatchedWindows {
         let window = windows[index]
-        let closed = await Self.closeWindow(window.nativeId, of: pid)
+        guard let nativeId = window.nativeId else {
+          done.append("\"\(window.title)\" not closed: AeroSpace lost its id")
+          continue
+        }
+        let closed = await Self.closeWindow(nativeId, of: pid)
         done.append("\"\(window.title)\"" + (closed ? " closed" : " not closed"))
       }
       if !matching.unmatchedRecorded.isEmpty {

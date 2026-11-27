@@ -85,6 +85,20 @@ import Testing
     #expect(try listed(window(bundleIdLine: line)).map(\.bundleId) == [nil])
   }
 
+  @Test func `a window whose window server id AeroSpace lost decodes with none`() throws {
+    let lost = window.replacing(
+      #""window-id-native" : 208,"#, with: #""window-id-native" : "NULL-WINDOW-ID","#)
+
+    #expect(try listed(lost).map(\.nativeId) == [nil])
+  }
+
+  @Test func `a window server id that is some other text does not decode`() {
+    let other = window.replacing(
+      #""window-id-native" : 208,"#, with: #""window-id-native" : "208","#)
+
+    #expect(throws: DecodingError.self) { try listed(other) }
+  }
+
   @Test func `a window listing without a field AeroSpace always gives does not decode`() {
     let withoutLayout = window.replacing(
       #""window-parent-container-layout" : "h_tiles","#, with: "")

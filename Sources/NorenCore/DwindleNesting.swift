@@ -17,13 +17,14 @@ public enum DwindleNesting: Equatable, Sendable {
   /// Left in place, then shown faded in, or at once (`fade` false) when it floats: nothing made
   /// room for it
   case leave(nativeId: UInt32, fade: Bool)
-  /// AeroSpace does not list the window (it closed already): nothing to place or show
+  /// AeroSpace does not list the window (it closed already), or has lost its window server id:
+  /// nothing to place or show
   case gone
 
   /// The nesting of AeroSpace's window `window`, new, among every window AeroSpace lists
   /// (`windows`, with their layouts and workspaces).
   public init(of window: UInt32, among windows: [ListedWindow]) {
-    guard let new = windows.first(where: { $0.id == window }) else {
+    guard let new = windows.first(where: { $0.id == window }), let nativeId = new.nativeId else {
       self = .gone
       return
     }
@@ -33,7 +34,7 @@ public enum DwindleNesting: Equatable, Sendable {
     case "v_tiles": direction = .up
     default:
       // Floating or accordion
-      self = .leave(nativeId: new.nativeId, fade: new.layout != "floating")
+      self = .leave(nativeId: nativeId, fade: new.layout != "floating")
       return
     }
     let tiledBeside = windows.count {
@@ -41,7 +42,7 @@ public enum DwindleNesting: Equatable, Sendable {
     }
     self =
       tiledBeside > 2
-      ? .join(nativeId: new.nativeId, direction: direction)
-      : .leave(nativeId: new.nativeId, fade: true)
+      ? .join(nativeId: nativeId, direction: direction)
+      : .leave(nativeId: nativeId, fade: true)
   }
 }

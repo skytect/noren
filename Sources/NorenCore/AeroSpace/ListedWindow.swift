@@ -12,6 +12,8 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
   /// What AeroSpace prints for `%{app-bundle-id}` when the app has no bundle id
   /// (AeroSpace's Sources/AppBundle/command/format.swift).
   static let noBundleId = "NULL-APP-BUNDLE-ID"
+  /// What AeroSpace prints for `%{window-id-native}` when it has lost the window server's id
+  static let noNativeId = "NULL-WINDOW-ID"
 
   enum CodingKeys: String, CodingKey {
     case id = "window-id"
@@ -26,8 +28,8 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
 
   /// AeroSpace's id of the window
   public let id: UInt32
-  /// The window server's id of the window (CGWindowID)
-  public let nativeId: UInt32
+  /// The window server's id of the window (CGWindowID), nil when AeroSpace has lost it
+  public let nativeId: UInt32?
   /// The layout of the container the window is in: `h_tiles`, `v_tiles`, `h_accordion`,
   /// `v_accordion` or `floating`; AeroSpace names other values for a window it does not lay out,
   /// such as a minimized one
@@ -41,7 +43,7 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
   public let title: String
 
   public init(
-    id: UInt32, nativeId: UInt32, layout: String, workspace: String, pid: Int32,
+    id: UInt32, nativeId: UInt32?, layout: String, workspace: String, pid: Int32,
     bundleId: String?, appName: String, title: String
   ) {
     self.id = id
@@ -55,13 +57,19 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
   }
 
   /// Decodes a window, with `bundleId` nil when AeroSpace gives none: null, left out, or its
-  /// placeholder for an app without one.
+  /// placeholder for an app without one; and `nativeId` nil for its placeholder of a lost id.
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let bundleId = try container.decodeIfPresent(String.self, forKey: .bundleId)
+    let nativeId: UInt32?
+    if (try? container.decode(String.self, forKey: .nativeId)) == Self.noNativeId {
+      nativeId = nil
+    } else {
+      nativeId = try container.decode(UInt32.self, forKey: .nativeId)
+    }
     self.init(
       id: try container.decode(UInt32.self, forKey: .id),
-      nativeId: try container.decode(UInt32.self, forKey: .nativeId),
+      nativeId: nativeId,
       layout: try container.decode(String.self, forKey: .layout),
       workspace: try container.decode(String.self, forKey: .workspace),
       pid: try container.decode(Int32.self, forKey: .pid),

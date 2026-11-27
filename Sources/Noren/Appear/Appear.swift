@@ -251,7 +251,7 @@ final class Appear: Part {
           ["list-windows", "--all", "--json", "--format", ListedWindow.format],
           as: [ListedWindow].self)
         {
-          listed[window.nativeId] = window.id
+          if let nativeId = window.nativeId { listed[nativeId] = window.id }
         }
       } catch {
         log.error("could not list the windows: \(error, privacy: .public)")
