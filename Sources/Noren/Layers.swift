@@ -1,10 +1,9 @@
 // Floating windows stay above tiled ones (WindowLayers): after each AeroSpace event the windows are
-// listed again, and the Dock payload (Dock/payload.m) puts the newly tiled ones below the normal
-// level and brings back the ones floated, made fullscreen or minimized. Without the payload in the
-// Dock nothing changes: only the Dock may change another app's window level (docs/dock.md).
-//
-// What is below is forgotten when AeroSpace comes back and whenever the payload cannot be reached,
-// so every window is set again on the next look.
+// listed again, compared with the levels the window server has them at, and the Dock payload
+// (Dock/payload.m) puts the newly tiled ones below the normal level and brings back the ones
+// floated, made fullscreen or minimized. Without the payload in the Dock, or with one from before
+// noren knew to ask (the Dock loads a new one only when it restarts), nothing changes: only the
+// Dock may change another app's window level (docs/dock.md).
 import CoreGraphics
 import NorenCore
 import os
@@ -14,8 +13,6 @@ final class Layers: Part {
   private let aeroSpace: AeroSpaceClient
   /// Has the border look at its window again: its ring goes where its window went
   private let wakeBorder: () -> Void
-  /// The windows below, nil when unknown
-  private var applied: Set<CGWindowID>?
   /// The latest look; each waits for the one before
   private var looking: Task<Void, Never>?
 
@@ -25,28 +22,15 @@ final class Layers: Part {
   }
 
   func handle(_ event: AeroSpaceEvent) {
-    switch event {
-    case .connected:
-      applied = nil
-      look()
-    case .modeChanged: break
-    default: look()
-    }
-  }
-
-  /// Whether `window` is below the normal level
-  func isBelow(_ window: CGWindowID) -> Bool {
-    applied?.contains(window) ?? false
-  }
-
-  private func look() {
+    if case .modeChanged = event { return }
     looking = Task { [previous = looking] in
       await previous?.value
-      await apply()
+      await look()
     }
   }
 
-  private func apply() async {
+  private func look() async {
+    guard let skyLight = SkyLight.shared else { return }
     let windows: [ListedWindow]
     do {
       windows = try await aeroSpace.run(
@@ -56,15 +40,11 @@ final class Layers: Part {
       log.error("could not list the windows: \(error, privacy: .public)")
       return
     }
-    let layers = WindowLayers(from: applied, to: windows)
+    let current = Set(windows.compactMap(\.nativeId).filter(skyLight.isBelow))
+    let layers = WindowLayers(from: current, to: windows)
     guard !layers.isEmpty else { return }
-    guard await DockPayload.send(.below, layers.below),
-      await DockPayload.send(.normal, layers.normal)
-    else {
-      applied = nil
-      return
-    }
-    applied = layers.applied
+    _ = await DockPayload.send(.below, layers.below)
+    _ = await DockPayload.send(.normal, layers.normal)
     wakeBorder()
   }
 }

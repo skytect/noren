@@ -1,6 +1,6 @@
 // The focused window's border: a ring over the window's outermost `width` points, one window
-// level above its window: above app windows, or, for a tiled window Layers put one level down,
-// above the tiled windows and under the floating ones. Inside the window's edge, so the gaps
+// level above its window as the window server has it: above app windows, or, for a tiled window
+// Layers put one level down, above the tiled windows and under the floating ones. Inside the window's edge, so the gaps
 // between windows look the same whichever window has focus. Ordering it just above the window
 // instead did not hold: activating an app raises its windows over the ring. The level's cost: a
 // window on the same level overlapping the focused one shows the ring over it. A window AeroSpace
@@ -37,7 +37,6 @@ final class Border: Part {
   private let config: BorderConfig
   private let aeroSpace: AeroSpaceClient
   private let isHeld: (CGWindowID) -> Bool
-  private let isBelow: (CGWindowID) -> Bool
   private let ring: Ring
   /// The focused window, nil when none is or it fills its monitor
   private var target: CGWindowID?
@@ -51,16 +50,13 @@ final class Border: Part {
   /// the window focused last
   private var following: Task<Void, Never>?
 
-  /// `isHeld` tells whether the Dock payload holds a new window hidden, or it is still fading in;
-  /// `isBelow` whether a window is one level below app windows (Layers).
+  /// `isHeld` tells whether the Dock payload holds a new window hidden, or it is still fading in.
   init(
-    config: BorderConfig, aeroSpace: AeroSpaceClient, isHeld: @escaping (CGWindowID) -> Bool,
-    isBelow: @escaping (CGWindowID) -> Bool
+    config: BorderConfig, aeroSpace: AeroSpaceClient, isHeld: @escaping (CGWindowID) -> Bool
   ) {
     self.config = config
     self.aeroSpace = aeroSpace
     self.isHeld = isHeld
-    self.isBelow = isBelow
     ring = Ring(width: config.width)
   }
 
@@ -190,7 +186,9 @@ final class Border: Part {
     }
     // Asked each time, not only when the frame changes: the window server may report an app's new
     // corners a moment after its window has moved
-    ring.show(frame: frame, corners: CornerRadii.of(target, frame: frame), below: isBelow(target))
+    ring.show(
+      frame: frame, corners: CornerRadii.of(target, frame: frame),
+      below: SkyLight.shared?.isBelow(target) ?? false)
   }
 
   /// The window server's description of `window`, nil if it is gone.

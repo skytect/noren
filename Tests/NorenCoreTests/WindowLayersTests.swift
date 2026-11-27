@@ -19,8 +19,7 @@ import Testing
   @Test func `a fullscreen window stays normal, to cover the floating ones`() {
     let layers = WindowLayers(from: [], to: [window(1, "h_tiles", fullscreen: true)])
 
-    #expect(layers.below == [])
-    #expect(layers.applied == [])
+    #expect(layers.isEmpty)
   }
 
   @Test func `a window floated or made fullscreen comes back to normal`() {
@@ -30,22 +29,14 @@ import Testing
 
     #expect(layers.below == [])
     #expect(layers.normal == [1, 2])
-    #expect(layers.applied == [3])
   }
 
   @Test func `windows already below are not set again`() {
     #expect(WindowLayers(from: [1], to: [window(1, "h_tiles")]).isEmpty)
   }
 
-  @Test func `with nothing known every window is set`() {
-    let layers = WindowLayers(from: nil, to: [window(1, "h_tiles"), window(2, "floating")])
-
-    #expect(layers.below == [1])
-    #expect(layers.normal == [2])
-  }
-
   @Test func `a window without a window server id is left be`() {
-    #expect(WindowLayers(from: nil, to: [window(nil, "h_tiles")]).isEmpty)
+    #expect(WindowLayers(from: [], to: [window(nil, "h_tiles")]).isEmpty)
   }
 
   @Test func `a minimized window goes back to normal`() {

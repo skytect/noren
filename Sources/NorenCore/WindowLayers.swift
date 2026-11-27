@@ -4,18 +4,16 @@
 // above them at the normal level, the focused tiled window included. A window AeroSpace fills its
 // monitor with (`fullscreen`) stays at the normal level: focused, it covers the floating ones.
 
-/// Which windows go below, and the changes from the ones already there.
+/// The changes that put the right windows below.
 public struct WindowLayers: Equatable, Sendable {
   /// The window server ids of the windows to put below
   public let below: [UInt32]
   /// The window server ids of the windows to bring back to the normal level
   public let normal: [UInt32]
-  /// Every window below once these are applied
-  public let applied: Set<UInt32>
 
-  /// The changes from `applied`, the windows already below (nil when unknown: every listed window
-  /// is set then), to what `windows` asks for. Windows AeroSpace has lost the id of are left be.
-  public init(from applied: Set<UInt32>?, to windows: [ListedWindow]) {
+  /// The changes from `current`, the windows below now, to what `windows` asks for. Windows
+  /// AeroSpace has lost the id of are left be.
+  public init(from current: Set<UInt32>, to windows: [ListedWindow]) {
     var wanted = Set<UInt32>()
     var others = Set<UInt32>()
     for window in windows {
@@ -26,9 +24,8 @@ public struct WindowLayers: Equatable, Sendable {
         others.insert(id)
       }
     }
-    below = wanted.subtracting(applied ?? []).sorted()
-    normal = (applied.map { $0.intersection(others) } ?? others).sorted()
-    self.applied = wanted
+    below = wanted.subtracting(current).sorted()
+    normal = current.intersection(others).sorted()
   }
 
   /// Whether nothing changes
