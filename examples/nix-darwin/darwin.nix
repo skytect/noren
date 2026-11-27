@@ -85,8 +85,6 @@ in
 
   system.defaults = {
     NSGlobalDomain = {
-      # Ctrl+Cmd+drag anywhere in a window moves it; noren turns that into Ctrl+drag
-      NSWindowShouldDragOnGesture = true;
       # The menu bar stays shown, never sliding: noren's bar covers it
       _HIHideMenuBar = false;
       NSAutomaticWindowAnimationsEnabled = false;

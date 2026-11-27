@@ -17,6 +17,10 @@
 // told about is shown at once, and while noren's port is missing (noren not running) no window is
 // hidden at all.
 //
+// noren's Ctrl+drag (Drag.swift) moves windows through here too (NORMessageMove): the window server
+// moves the window as it does one dragged by its title bar, in any app, where an app's own
+// Accessibility answers lag behind the pointer.
+//
 // Needs System Integrity Protection partly off: see docs/dock.md.
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
@@ -55,6 +59,8 @@ typedef uint32_t (*SLSWindowIteratorGetParentIDFunction)(CFTypeRef);
 typedef CFTypeRef (*SLSTransactionCreateFunction)(int);
 typedef CGError (*SLSTransactionSetWindowSystemAlphaFunction)(CFTypeRef, uint32_t, float);
 typedef CGError (*SLSTransactionCommitFunction)(CFTypeRef, int);
+typedef CGError (*SLSMoveWindowWithGroupFunction)(int, uint32_t, CGPoint *);
+typedef void (*SLSReassociateWindowsSpacesByGeometryFunction)(int, CFArrayRef);
 
 static SLSGetWindowOwnerFunction gGetWindowOwner;
 static SLSSetWindowTagsFunction gSetWindowTags;
@@ -67,6 +73,8 @@ static SLSWindowIteratorGetParentIDFunction gGetParentID;
 static SLSTransactionCreateFunction gTransactionCreate;
 static SLSTransactionSetWindowSystemAlphaFunction gSetSystemAlpha;
 static SLSTransactionCommitFunction gCommit;
+static SLSMoveWindowWithGroupFunction gMoveWindow;
+static SLSReassociateWindowsSpacesByGeometryFunction gReassociate;
 
 static int gConnection;  // the Dock's
 static BOOL gHides;      // NO when noren could not reach the payload: then nothing is hidden
@@ -208,9 +216,25 @@ static void WindowCreated(uint32_t event, void *data, size_t length, void *conte
   }
 }
 
-// noren's NORMessageShow and NORMessageReveal, on gQueue
+// Moves `move.window` to `move`'s point, and onto the space of the screen it is now on, as
+// yabai's scripting addition does (do_window_move in src/osax/payload.m). Runs on gQueue.
+static void Move(NORMove move) {
+  CGPoint point = CGPointMake(move.x, move.y);
+  gMoveWindow(gConnection, move.window, &point);
+  gReassociate(gConnection, (__bridge CFArrayRef) @[ @(move.window) ]);
+}
+
+// noren's messages, on gQueue
 static CFDataRef Received(CFMessagePortRef port, SInt32 message, CFDataRef data, void *info) {
-  if ((message != NORMessageShow && message != NORMessageReveal) || !data) return NULL;
+  if (!data) return NULL;
+  if (message == NORMessageMove) {
+    if (CFDataGetLength(data) < (CFIndex)sizeof(NORMove)) return NULL;
+    NORMove move;
+    memcpy(&move, CFDataGetBytePtr(data), sizeof move);
+    Move(move);
+    return NULL;
+  }
+  if (message != NORMessageShow && message != NORMessageReveal) return NULL;
   NSData *bytes = (__bridge NSData *)data;
   const uint32_t *windows = bytes.bytes;
   for (NSUInteger i = 0; i < bytes.length / sizeof(uint32_t); i++) {
@@ -239,9 +263,11 @@ __attribute__((constructor)) static void NORDockPayloadStart(void) {
   gTransactionCreate = dlsym(skyLight, "SLSTransactionCreate");
   gSetSystemAlpha = dlsym(skyLight, "SLSTransactionSetWindowSystemAlpha");
   gCommit = dlsym(skyLight, "SLSTransactionCommit");
+  gMoveWindow = dlsym(skyLight, "SLSMoveWindowWithGroup");
+  gReassociate = dlsym(skyLight, "SLSReassociateWindowsSpacesByGeometry");
   if (!mainConnection || !registerNotifyProc || !gGetWindowOwner || !gSetWindowTags ||
       !gQueryWindows || !gCopyWindows || !gAdvance || !gGetLevel || !gGetTags || !gGetParentID ||
-      !gTransactionCreate || !gSetSystemAlpha || !gCommit) {
+      !gTransactionCreate || !gSetSystemAlpha || !gCommit || !gMoveWindow || !gReassociate) {
     NSLog(@"noren: SkyLight calls not found; windows keep their shadows and show as they open");
     return;
   }

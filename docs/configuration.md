@@ -60,14 +60,10 @@ Each part has `enable` (default `true`).
 
 ## `[drag]`
 
-Ctrl+drag works by adding Cmd to the drag, so it needs macOS's own Ctrl+Cmd+drag turned on:
-
-```sh
-defaults write -g NSWindowShouldDragOnGesture -bool true
-```
-
-and noren allowed Accessibility, which it asks for when it starts. Ctrl+click is then no longer a
-right-click.
+Ctrl+drag moves the window under the pointer in any app. It needs noren allowed Accessibility,
+which it asks for when it starts. With the [Dock payload](dock.md) the window moves as smoothly as
+one dragged by its title bar; without it, through Accessibility, which a busy app answers late.
+Ctrl+click over a window is no longer a right-click.
 
 ## `[appear]`
 

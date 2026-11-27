@@ -63,7 +63,6 @@ without the Ctrl/Cmd trade. Focusing any other window undoes both.
 
 - Three-finger swipes between Spaces off, as noren's strip takes them; Mission Control's,
   App Exposé's and Launchpad's gestures off, as AeroSpace's workspaces stand in for them.
-- Ctrl+Cmd+drag on (`NSWindowShouldDragOnGesture`), which noren turns into Ctrl+drag.
 - The menu bar always shown, as noren's bar covers it; the Dock hidden for good.
 - Notification Center on F19, which noren presses on a click on its clock.
 - macOS's own reopening of windows after a restart off, as noren restores them itself.
