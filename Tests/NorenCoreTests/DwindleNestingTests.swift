@@ -22,6 +22,18 @@ import Testing
     #expect(DwindleNesting(of: 9, among: windows) == .join(nativeId: 119, direction: .left))
   }
 
+  @Test func `a window there before AeroSpace started is left where it is`() {
+    let windows = [
+      window(16, 208, "h_tiles", on: "1"),
+      window(7, 73, "h_tiles", on: "1"),
+      window(9, 119, "h_tiles", on: "1"),
+    ]
+
+    #expect(
+      DwindleNesting(of: 9, among: windows, existing: [208, 73, 119])
+        == .leave(nativeId: 119, fade: false))
+  }
+
   @Test func `a new window in a stacked container joins the window above it`() {
     let windows = [
       window(16, 208, "h_tiles", on: "2"),

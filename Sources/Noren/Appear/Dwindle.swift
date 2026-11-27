@@ -29,6 +29,8 @@ final class Dwindle: Part {
   private let show: (CGWindowID, Bool) -> Void
   /// The latest new window being nested; each waits for the one before
   private var following: Task<Void, Never>?
+  /// The window server ids of the app windows there when AeroSpace last connected
+  private var existing: Set<CGWindowID> = []
 
   init(aeroSpace: AeroSpaceClient, show: @escaping (CGWindowID, Bool) -> Void) {
     self.aeroSpace = aeroSpace
@@ -36,6 +38,7 @@ final class Dwindle: Part {
   }
 
   func handle(_ event: AeroSpaceEvent) {
+    if case .connected = event { existing = Self.appWindows() }
     guard case .windowDetected(let window, _, _, _) = event else { return }
     following = Task { [previous = following] in
       await previous?.value
@@ -55,7 +58,7 @@ final class Dwindle: Part {
       log.error("could not list the windows: \(error, privacy: .public)")
       return
     }
-    switch DwindleNesting(of: window, among: windows) {
+    switch DwindleNesting(of: window, among: windows, existing: existing) {
     case .join(let nativeId, let direction):
       do {
         _ = try await aeroSpace.run(
@@ -69,5 +72,15 @@ final class Dwindle: Part {
     case .gone:
       break
     }
+  }
+
+  /// The window server ids of every app window, on screen or not
+  private static func appWindows() -> Set<CGWindowID> {
+    let infos = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[String: Any]] ?? []
+    return Set(
+      infos.compactMap { info in
+        info[kCGWindowLayer as String] as? Int == 0
+          ? info[kCGWindowNumber as String] as? CGWindowID : nil
+      })
   }
 }

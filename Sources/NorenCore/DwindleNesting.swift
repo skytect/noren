@@ -2,7 +2,9 @@
 // one in the same container, so every window would end up side by side. Joining it with that
 // window instead nests the two across the container, alternating side-by-side and stacked. The
 // second window of a workspace is left beside the first: that first split follows the screen's
-// longer side.
+// longer side. A window that was there before AeroSpace started is left be: AeroSpace reports
+// every window it finds at its start as detected, but they are not new, and Restore puts them back
+// where they were.
 
 /// What becomes of a new window: joined with the window before it, left where AeroSpace put it, or
 /// nothing when AeroSpace no longer lists it.
@@ -21,11 +23,16 @@ public enum DwindleNesting: Equatable, Sendable {
   /// nothing to place or show
   case gone
 
-  /// The nesting of AeroSpace's window `window`, new, among every window AeroSpace lists
-  /// (`windows`, with their layouts and workspaces).
-  public init(of window: UInt32, among windows: [ListedWindow]) {
+  /// The nesting of AeroSpace's window `window`, reported new, among every window AeroSpace lists
+  /// (`windows`, with their layouts and workspaces); `existing` holds the window server ids of the
+  /// windows there before AeroSpace started.
+  public init(of window: UInt32, among windows: [ListedWindow], existing: Set<UInt32> = []) {
     guard let new = windows.first(where: { $0.id == window }), let nativeId = new.nativeId else {
       self = .gone
+      return
+    }
+    if existing.contains(nativeId) {
+      self = .leave(nativeId: nativeId, fade: false)
       return
     }
     let direction: Direction
