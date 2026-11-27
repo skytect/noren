@@ -31,6 +31,9 @@ public struct RestoreSnapshot: Codable, Equatable, Sendable {
   public var apps: [App]
   /// Whether it was taken as the session ended (a logout, restart or shutdown).
   public var ending: Bool
+  /// Where each window was under the AeroSpace process noren last saw before it restarted, nil in
+  /// a snapshot from before noren kept them here
+  public var placements: WorkspacePlacements?
 
   public init(boot: String, apps: [App], ending: Bool) {
     self.boot = boot

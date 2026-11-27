@@ -19,10 +19,13 @@
 // or started before noren got to them, are never touched, nor is a window that opens after its
 // app has settled.
 //
-// AeroSpace restarting (an update) loses its workspaces too: the new process puts every window
-// where its rules say. Each snapshot also records every window's workspace by window server id
-// (WorkspacePlacements), with AeroSpace's process; when noren connects to a new AeroSpace process,
-// the windows go back. Until then, snapshots under the new process leave that record alone.
+// AeroSpace restarting (an update) loses its workspaces too: the new process puts every window on
+// the focused workspace, often as an accordion. Each snapshot also records every window's
+// workspace and layout by window server id (WorkspacePlacements), with AeroSpace's process; when
+// noren connects to a new AeroSpace process, the windows go back, then get their layouts back.
+// Until then, snapshots under the new process leave that record alone. It is saved with the
+// snapshot, so a noren that started just before AeroSpace restarted (both updated at once) puts the
+// windows back as well.
 import AppKit
 import NorenCore
 import NorenPrivate
@@ -67,8 +70,8 @@ final class Restore: Part {
   private var snapshotPending = false
   /// When macOS announced the session's end
   private var ending: Date?
-  /// Every window's workspace, and the AeroSpace process they were read from
-  private var placements: (aeroSpace: pid_t, windows: WorkspacePlacements)?
+  /// Every window's workspace and layout, and the AeroSpace process they were read from
+  private var placements: WorkspacePlacements?
 
   private static let snapshotURL = URL.applicationSupportDirectory
     .appending(components: "noren", "snapshot.json")
@@ -99,11 +102,11 @@ final class Restore: Part {
 
   func handle(_ event: AeroSpaceEvent) {
     switch event {
-    case .connected where !launched:
-      launched = true
-      for app in restoring.values { launch(app) }
-      if restoring.isEmpty { scheduleSnapshot() }
     case .connected:
+      if !launched {
+        launched = true
+        for app in restoring.values { launch(app) }
+      }
       putBack()
     case .windowDetected(_, _, let appBundleId?, _):
       if launched, let app = restoring[appBundleId], !app.settling {
@@ -171,7 +174,7 @@ final class Restore: Part {
       if let windows, let pid = Self.aeroSpacePid(),
         placements == nil || placements?.aeroSpace == pid
       {
-        placements = (pid, WorkspacePlacements(windows))
+        placements = WorkspacePlacements(windows, aeroSpace: pid)
       }
       if let windows {
         last = RestoreSnapshot(
@@ -182,6 +185,7 @@ final class Restore: Part {
       }
       guard var snapshot = last, windows != nil || ending else { return }
       snapshot.ending = ending
+      snapshot.placements = placements
       write(snapshot)
       if ending {
         log.info("the session is ending: snapshot of \(snapshot.apps.count) apps kept")
@@ -195,7 +199,8 @@ final class Restore: Part {
       .processIdentifier
   }
 
-  /// Once AeroSpace is a new process, puts each window back on the workspace it had in the last
+  /// Once AeroSpace is a new process, puts each window back on the workspace and in the layout it
+  /// had in the last
   private func putBack() {
     following = Task { [previous = following] in
       await previous?.value
@@ -212,20 +217,33 @@ final class Restore: Part {
         log.error("could not list the windows to put back: \(error, privacy: .public)")
         return
       }
-      var moved = 0
-      for move in recorded.windows.moves(windows) {
-        do {
-          _ = try await aeroSpace.run(
-            ["move-node-to-workspace", "--window-id", String(move.windowId), "--", move.workspace])
-          moved += 1
-        } catch {
-          log.error(
-            "could not put window \(move.windowId) back on \(move.workspace, privacy: .public): \(error, privacy: .public)"
-          )
-        }
+      let moves = recorded.moves(windows)
+      // Workspaces first: a window moved lands in its new workspace's root, and the layouts are
+      // set where the windows end up
+      for move in moves {
+        guard let workspace = move.workspace else { continue }
+        await run(["move-node-to-workspace", "--window-id", String(move.windowId), "--", workspace])
       }
-      placements = (pid, recorded.windows)
-      log.info("AeroSpace restarted: \(moved) windows back on their workspaces")
+      for move in moves {
+        guard let layout = move.layout else { continue }
+        await run(["layout", "--window-id", String(move.windowId), layout])
+      }
+      // Kept for the new process until a snapshot under it records afresh
+      var kept = recorded
+      kept.aeroSpace = pid
+      placements = kept
+      log.info("AeroSpace restarted: \(moves.count) windows put back")
+    }
+  }
+
+  /// Runs the aerospace command `args`, logging a failure
+  private func run(_ args: [String]) async {
+    do {
+      _ = try await aeroSpace.run(args)
+    } catch {
+      log.error(
+        "aerospace \(args.joined(separator: " "), privacy: .public) failed: \(error, privacy: .public)"
+      )
     }
   }
 
@@ -251,7 +269,10 @@ final class Restore: Part {
       log.error("could not read the snapshot: \(error, privacy: .public)")
       return
     }
-    guard snapshot.isRestored(inBoot: Self.bootSession()) else { return }
+    let boot = Self.bootSession()
+    // Window server ids hold within a boot
+    if snapshot.boot == boot { placements = snapshot.placements }
+    guard snapshot.isRestored(inBoot: boot) else { return }
     for app in snapshot.apps { restoring[app.bundleId] = RestoringApp(app) }
     let from = snapshot.ending ? "session's end" : "last boot"
     log.info("restoring \(self.restoring.count) apps from the \(from, privacy: .public)")
