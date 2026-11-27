@@ -62,7 +62,7 @@ Each part has `enable` (default `true`).
 
 | Key | Default | |
 | --- | --- | --- |
-| `start` | `true` | Whether noren starts the AeroSpace inside it, as the login agent `local.noren.aerospace`. The home-manager module runs that agent itself and sets this to `false` |
+| `start` | `true` | Whether noren starts the AeroSpace inside it, registering the login agent `local.noren.aerospace`. `false` says something else runs that agent, and noren withdraws a registration it made before. The home-manager module runs the agent itself and sets this to `false` |
 
 ## `[drag]`
 

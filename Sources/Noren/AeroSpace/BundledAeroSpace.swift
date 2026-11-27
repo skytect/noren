@@ -1,7 +1,8 @@
 // The AeroSpace inside Noren.app (Contents/Helpers/AeroSpace.app, built by nix/aerospace). It runs
 // as a login agent of its own, local.noren.aerospace (Contents/Library/LaunchAgents), which noren
-// registers through SMAppService unless [aerospace] start is false: the nix module runs the agent
-// itself, under the same label. Being its own agent, AeroSpace keeps running, and the windows stay
+// registers through SMAppService unless [aerospace] start is false: then something else runs the
+// agent under that label (the nix module does), and a registration noren made before is withdrawn,
+// so the two never both load it. Being its own agent, AeroSpace keeps running, and the windows stay
 // where they are, while noren starts afresh or updates alone.
 //
 // At start, another AeroSpace running (installed by hand or by Homebrew) is quit, and said so: two
@@ -34,8 +35,15 @@ final class BundledAeroSpace: Part {
 
   func start() {
     quitOthers()
-    if config.start { register() }
-    Task { await restartIfOtherBuild() }
+    if config.start {
+      register()
+      Task { await restartIfOtherBuild() }
+    } else {
+      Task {
+        await withdraw()
+        await restartIfOtherBuild()
+      }
+    }
   }
 
   /// Quits every AeroSpace running that is not the bundled one
@@ -66,6 +74,18 @@ final class BundledAeroSpace: Part {
         "AeroSpace waits to be allowed: turn Noren on in System Settings > General > Login Items")
     default:
       Problems.report("AeroSpace could not be started (its agent is \(service.status))")
+    }
+  }
+
+  /// Takes back a registration noren made while it started AeroSpace itself
+  private func withdraw() async {
+    let service = SMAppService.agent(plistName: "\(Self.label).plist")
+    guard service.status != .notRegistered && service.status != .notFound else { return }
+    do {
+      try await service.unregister()
+      log.info("AeroSpace's agent is run by something else now; noren's registration withdrawn")
+    } catch {
+      Problems.report("could not withdraw noren's own AeroSpace agent: \(error)")
     }
   }
 
