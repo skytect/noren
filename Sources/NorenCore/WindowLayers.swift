@@ -1,8 +1,9 @@
-// Floating windows stay above tiled ones. Every tiled window goes one level down, to the
-// backstop menu level where yabai puts the windows it manages (window_manager_set_window_layer in
-// src/window_manager.c), so floating windows, dialogs and every window AeroSpace leaves alone stay
-// above them at the normal level, the focused tiled window included. A window AeroSpace fills its
-// monitor with (`fullscreen`) stays at the normal level: focused, it covers the floating ones.
+// Floating windows stay above tiled ones. Every tiled window goes below, to the backstop menu
+// sublevel where yabai puts the windows it manages (window_manager_set_window_layer in
+// src/window_manager.c): still at the normal level, but under every other window there. Floating
+// windows, dialogs and every window AeroSpace leaves alone stay above them, the focused tiled
+// window included. A window AeroSpace fills its monitor with (`fullscreen`) is not put below:
+// focused, it covers the floating ones.
 
 /// The changes that put the right windows below.
 public struct WindowLayers: Equatable, Sendable {
@@ -31,7 +32,7 @@ public struct WindowLayers: Equatable, Sendable {
   /// Whether nothing changes
   public var isEmpty: Bool { below.isEmpty && normal.isEmpty }
 
-  /// Whether `window` goes below the normal level: tiled, and not filling its monitor
+  /// Whether `window` goes below the other windows: tiled, and not filling its monitor
   public static func goesBelow(_ window: ListedWindow) -> Bool {
     window.layout.hasSuffix("_tiles") || window.layout.hasSuffix("_accordion")
       ? !window.isFullscreen : false

@@ -1,6 +1,6 @@
 // Floating windows stay above tiled ones (WindowLayers): after each AeroSpace event the windows are
 // listed again, compared with the levels the window server has them at, and the Dock payload
-// (Dock/payload.m) puts the newly tiled ones below the normal level and brings back the ones
+// (Dock/payload.m) puts the newly tiled ones under the other windows and brings back the ones
 // floated, made fullscreen or minimized. Without the payload in the Dock, or with one from before
 // noren knew to ask (the Dock loads a new one only when it restarts), nothing changes: only the
 // Dock may change another app's window level (docs/dock.md).

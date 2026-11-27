@@ -17,8 +17,8 @@ typedef CF_ENUM(SInt32, NORMessage) {
   NORMessageShow = 2,  // noren to payload: show these at once, if hidden
   NORMessageReveal = 3,  // noren to payload: fade these in over NOR_FADE, if hidden
   NORMessageMove = 4,    // noren to payload: move a window (Ctrl+drag)
-  NORMessageBelow = 5,   // noren to payload: put these one level below other apps' windows
-  NORMessageNormal = 6,  // noren to payload: bring these back to the normal level
+  NORMessageBelow = 5,   // noren to payload: put these under the other windows
+  NORMessageNormal = 6,  // noren to payload: bring these back among the others
 };
 
 // A window to move, and where its top-left corner goes, in the window server's global coordinates

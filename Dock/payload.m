@@ -21,11 +21,11 @@
 // moves the window as it does one dragged by its title bar, in any app, where an app's own
 // Accessibility answers lag behind the pointer.
 //
-// Tiled windows sit one level below other windows (NORMessageBelow, Layers.swift), so floating
-// ones stay above them: the window's sublevel, as yabai's scripting addition sets a window's layer
-// (do_window_layer in src/osax/payload.m). The windows a sunk window owns, its sheets and popups,
-// stay at the normal level, as yabai keeps them (window_manager_set_window_layer in
-// src/window_manager.c), so they still show over the floating windows.
+// Tiled windows sit under the other windows of their level (NORMessageBelow, Layers.swift), so
+// floating ones stay above them: the window's sublevel, as yabai's scripting addition sets a
+// window's layer (do_window_layer in src/osax/payload.m). The windows a sunk window owns, its
+// sheets and popups, stay at the normal level, as yabai keeps them (window_manager_set_window_layer
+// in src/window_manager.c), so they still show over the floating windows.
 //
 // Needs System Integrity Protection partly off: see docs/dock.md.
 #import <CoreGraphics/CoreGraphics.h>
@@ -236,8 +236,8 @@ static void Move(NORMove move) {
   gReassociate(gConnection, (__bridge CFArrayRef) @[ @(move.window) ]);
 }
 
-// Puts `window` below the normal level, or back at it; the windows it owns stay at the normal
-// level. Runs on gQueue.
+// Puts `window` at the backstop sublevel, under the other windows of its level, or back at the
+// normal one; the windows it owns stay at the normal sublevel. Runs on gQueue.
 static void SetLayer(uint32_t window, BOOL below) {
   int normal = CGWindowLevelForKey(kCGNormalWindowLevelKey);
   gSetSubLevel(gConnection, window, below ? CGWindowLevelForKey(kCGBackstopMenuLevelKey) : normal);

@@ -1,10 +1,11 @@
-// The focused window's border: a ring over the window's outermost `width` points, one window
-// level above its window as the window server has it: above app windows, or, for a tiled window
-// Layers put one level down, above the tiled windows and under the floating ones. Inside the window's edge, so the gaps
-// between windows look the same whichever window has focus. Ordering it just above the window
-// instead did not hold: activating an app raises its windows over the ring. The level's cost: a
-// window on the same level overlapping the focused one shows the ring over it. A window AeroSpace
-// fills its monitor with has no ring.
+// The focused window's border: a ring over the window's outermost `width` points, just above its
+// window. Over a window at the normal level it is one level up, above app windows. Over a tiled
+// window Layers put at the backstop sublevel (under the other windows of the normal level, as the
+// window server reports it), it sits at the normal level one sublevel up: above the tiled windows,
+// under the floating ones. Inside the window's edge, so the gaps between windows look the same
+// whichever window has focus. Ordering it just above the window instead did not hold: activating
+// an app raises its windows over the ring. The level's cost: a window on the same level overlapping
+// the focused one shows the ring over it. A window AeroSpace fills its monitor with has no ring.
 //
 // The focused window comes from AeroSpace, asked after each focus event for the window server's
 // id of it (%{window-id-native}; the events' windowId is AeroSpace's own numbering); its frame and
@@ -219,9 +220,8 @@ final class Border: Part {
 private final class Ring {
   /// One above app windows (level 0), below floating panels, menus and the menu bar
   private static let level = NSWindow.Level(rawValue: NSWindow.Level.normal.rawValue + 1)
-  /// One above the windows Layers puts below the others, under the floating ones
-  private static let levelBelow = NSWindow.Level(
-    rawValue: Int(CGWindowLevelForKey(.backstopMenu)) + 1)
+  /// Over a tiled window Layers put under the others: the normal level, one sublevel above it
+  private static let subLevelBelow = SkyLight.below + 1
 
   private let window: NSWindow
   private let gradient = CAGradientLayer()
@@ -232,6 +232,8 @@ private final class Ring {
   private var shownFrame = CGRect.zero
   /// The corners the ring was last laid out with
   private var shownCorners: WindowCorners?
+  /// Whether the ring was last shown over a window Layers put under the others
+  private var shownBelow: Bool?
 
   init(width: CGFloat) {
     window = NSWindow(
@@ -269,8 +271,10 @@ private final class Ring {
 
   /// Fits the ring over `frame` with `corners`, and orders it in if it is out.
   func show(frame: CGRect, corners: WindowCorners, below: Bool) {
-    let level = below ? Self.levelBelow : Self.level
-    if window.level != level { window.level = level }
+    let ordered = !window.isVisible
+    if below != shownBelow {
+      window.level = below ? .normal : Self.level
+    }
     let moved = frame != shownFrame
     if moved {
       shownFrame = frame
@@ -280,7 +284,13 @@ private final class Ring {
       shownCorners = corners
       layOut(corners)
     }
-    if !window.isVisible { window.orderFrontRegardless() }
+    if ordered { window.orderFrontRegardless() }
+    // After ordering in, which may set the sublevel afresh
+    if below != shownBelow || ordered {
+      shownBelow = below
+      SkyLight.shared?.setSubLevel(
+        below ? Self.subLevelBelow : 0, of: CGWindowID(window.windowNumber))
+    }
   }
 
   func hide() {

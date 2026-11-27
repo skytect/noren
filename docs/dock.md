@@ -5,8 +5,8 @@ noren runs inside the Dock:
 
 - `Dock/payload.m` turns off every app window's shadow, and hides each new document window until
   noren says AeroSpace has put it in place. A window is never held for more than a second, and
-  nothing is hidden while noren is not running. It also puts tiled windows one level below the
-  others, so floating windows stay above them, and moves windows for `[drag]`.
+  nothing is hidden while noren is not running. It also puts tiled windows under the other
+  windows, so floating windows stay above them, and moves windows for `[drag]`.
 - `Dock/inject.m` (`noren-dock` in the app bundle) puts the payload into the Dock, and again each
   time the Dock restarts. It runs as root.
 
