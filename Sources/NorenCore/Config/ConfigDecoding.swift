@@ -33,7 +33,7 @@ extension Config {
 
 extension Config: Decodable {
   enum CodingKeys: String, CodingKey, CaseIterable {
-    case bar, status, strip, stay, pointer, border, drag, dwindle, appear, displays, restore
+    case bar, status, strip, stay, pointer, border, drag, dwindle, appear, displays, restore, layers
     case aerospace
     case focusRules = "focusRule"
   }
@@ -52,6 +52,7 @@ extension Config: Decodable {
     appear = try container.value(.appear, default: appear)
     displays = try container.value(.displays, default: displays)
     restore = try container.value(.restore, default: restore)
+    layers = try container.value(.layers, default: layers)
     focusRules = try container.value(.focusRules, default: focusRules)
     aerospace = try container.value(.aerospace, default: aerospace)
   }

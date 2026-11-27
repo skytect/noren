@@ -6,8 +6,8 @@
 public struct ListedWindow: Decodable, Equatable, Sendable {
   /// The `--format` that lists every field below.
   public static let format =
-    "%{window-id} %{window-id-native} %{window-parent-container-layout} %{workspace}"
-    + " %{app-pid} %{app-bundle-id} %{app-name} %{window-title}"
+    "%{window-id} %{window-id-native} %{window-parent-container-layout} %{window-is-fullscreen}"
+    + " %{workspace} %{app-pid} %{app-bundle-id} %{app-name} %{window-title}"
 
   /// What AeroSpace prints for `%{app-bundle-id}` when the app has no bundle id
   /// (AeroSpace's Sources/AppBundle/command/format.swift).
@@ -19,6 +19,7 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
     case id = "window-id"
     case nativeId = "window-id-native"
     case layout = "window-parent-container-layout"
+    case isFullscreen = "window-is-fullscreen"
     case workspace
     case pid = "app-pid"
     case bundleId = "app-bundle-id"
@@ -34,6 +35,8 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
   /// `v_accordion` or `floating`; AeroSpace names other values for a window it does not lay out,
   /// such as a minimized one
   public let layout: String
+  /// Whether AeroSpace's `fullscreen` fills its monitor with the window
+  public let isFullscreen: Bool
   public let workspace: String
   /// The process of the window's app
   public let pid: Int32
@@ -43,12 +46,13 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
   public let title: String
 
   public init(
-    id: UInt32, nativeId: UInt32?, layout: String, workspace: String, pid: Int32,
-    bundleId: String?, appName: String, title: String
+    id: UInt32, nativeId: UInt32?, layout: String, isFullscreen: Bool = false, workspace: String,
+    pid: Int32, bundleId: String?, appName: String, title: String
   ) {
     self.id = id
     self.nativeId = nativeId
     self.layout = layout
+    self.isFullscreen = isFullscreen
     self.workspace = workspace
     self.pid = pid
     self.bundleId = bundleId
@@ -71,6 +75,7 @@ public struct ListedWindow: Decodable, Equatable, Sendable {
       id: try container.decode(UInt32.self, forKey: .id),
       nativeId: nativeId,
       layout: try container.decode(String.self, forKey: .layout),
+      isFullscreen: try container.decode(Bool.self, forKey: .isFullscreen),
       workspace: try container.decode(String.self, forKey: .workspace),
       pid: try container.decode(Int32.self, forKey: .pid),
       bundleId: bundleId == Self.noBundleId ? nil : bundleId,

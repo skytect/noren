@@ -11,6 +11,7 @@ import Testing
       "app-pid" : 958,
       "window-id" : 16,
       "window-id-native" : 208,
+      "window-is-fullscreen" : false,
       "window-parent-container-layout" : "h_tiles",
       "window-title" : "a | title",
       "workspace" : "1"

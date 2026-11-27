@@ -1,8 +1,10 @@
 // The focused window's border: a ring over the window's outermost `width` points, one window
-// level above app windows. Inside the window's edge, so the gaps between windows look the same
-// whichever window has focus. Ordering it just above the window instead did not hold: activating
-// an app raises its windows over the ring. The level's cost: an unfocused window overlapping the
-// focused one (a floating one) shows the ring over it.
+// level above its window: above app windows, or, for a tiled window Layers put one level down,
+// above the tiled windows and under the floating ones. Inside the window's edge, so the gaps
+// between windows look the same whichever window has focus. Ordering it just above the window
+// instead did not hold: activating an app raises its windows over the ring. The level's cost: a
+// window on the same level overlapping the focused one shows the ring over it. A window AeroSpace
+// fills its monitor with has no ring.
 //
 // The focused window comes from AeroSpace, asked after each focus event for the window server's
 // id of it (%{window-id-native}; the events' windowId is AeroSpace's own numbering); its frame and
@@ -35,8 +37,9 @@ final class Border: Part {
   private let config: BorderConfig
   private let aeroSpace: AeroSpaceClient
   private let isHeld: (CGWindowID) -> Bool
+  private let isBelow: (CGWindowID) -> Bool
   private let ring: Ring
-  /// The focused window, nil when none is
+  /// The focused window, nil when none is or it fills its monitor
   private var target: CGWindowID?
   /// Accessibility's notifications about the focused window
   private var watch: WindowWatch?
@@ -48,13 +51,16 @@ final class Border: Part {
   /// the window focused last
   private var following: Task<Void, Never>?
 
-  /// `isHeld` tells whether the Dock payload holds a new window hidden, or it is still fading in.
+  /// `isHeld` tells whether the Dock payload holds a new window hidden, or it is still fading in;
+  /// `isBelow` whether a window is one level below app windows (Layers).
   init(
-    config: BorderConfig, aeroSpace: AeroSpaceClient, isHeld: @escaping (CGWindowID) -> Bool
+    config: BorderConfig, aeroSpace: AeroSpaceClient, isHeld: @escaping (CGWindowID) -> Bool,
+    isBelow: @escaping (CGWindowID) -> Bool
   ) {
     self.config = config
     self.aeroSpace = aeroSpace
     self.isHeld = isHeld
+    self.isBelow = isBelow
     ring = Ring(width: config.width)
   }
 
@@ -81,7 +87,9 @@ final class Border: Part {
 
   func handle(_ event: AeroSpaceEvent) {
     switch event {
-    case .connected, .focusChanged, .focusedWorkspaceChanged: readFocusedWindow()
+    // A binding may have made the window fill its monitor, or float it
+    case .connected, .focusChanged, .focusedWorkspaceChanged, .bindingTriggered:
+      readFocusedWindow()
     default: wake()
     }
   }
@@ -113,19 +121,22 @@ final class Border: Part {
     }
   }
 
+  /// The focused window, nil when none is or it fills its monitor
   private func focusedWindow() async -> CGWindowID? {
-    let output: String
+    let window: ListedWindow?
     do {
-      output = try await aeroSpace.run(
-        ["list-windows", "--focused", "--format", "%{window-id-native}"])
-    } catch .noWindowFocused {
+      window = try await aeroSpace.run(
+        ["list-windows", "--focused", "--json", "--format", ListedWindow.format],
+        as: [ListedWindow].self
+      ).first
+    } catch AeroSpaceError.noWindowFocused {
       return nil
     } catch {
       log.error("could not read the focused window: \(error, privacy: .public)")
       return nil
     }
-    let line = output.split(whereSeparator: \.isNewline).first ?? ""
-    return CGWindowID(line.trimmingCharacters(in: .whitespaces))
+    guard let window, !window.isFullscreen else { return nil }
+    return window.nativeId
   }
 
   private func retarget(_ window: CGWindowID?) {
@@ -179,7 +190,7 @@ final class Border: Part {
     }
     // Asked each time, not only when the frame changes: the window server may report an app's new
     // corners a moment after its window has moved
-    ring.show(frame: frame, corners: CornerRadii.of(target, frame: frame))
+    ring.show(frame: frame, corners: CornerRadii.of(target, frame: frame), below: isBelow(target))
   }
 
   /// The window server's description of `window`, nil if it is gone.
@@ -210,6 +221,9 @@ final class Border: Part {
 private final class Ring {
   /// One above app windows (level 0), below floating panels, menus and the menu bar
   private static let level = NSWindow.Level(rawValue: NSWindow.Level.normal.rawValue + 1)
+  /// One above the windows Layers puts below the others, under the floating ones
+  private static let levelBelow = NSWindow.Level(
+    rawValue: Int(CGWindowLevelForKey(.backstopMenu)) + 1)
 
   private let window: NSWindow
   private let gradient = CAGradientLayer()
@@ -256,7 +270,9 @@ private final class Ring {
   }
 
   /// Fits the ring over `frame` with `corners`, and orders it in if it is out.
-  func show(frame: CGRect, corners: WindowCorners) {
+  func show(frame: CGRect, corners: WindowCorners, below: Bool) {
+    let level = below ? Self.levelBelow : Self.level
+    if window.level != level { window.level = level }
     let moved = frame != shownFrame
     if moved {
       shownFrame = frame

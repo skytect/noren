@@ -12,10 +12,13 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   // Parts that reach one another do so through closures over these, so any of them can be off
   // Made last, below
   var appear: Appear?
+  var layers: Layers?
   let pointer = config.pointer.enable ? Pointer(aeroSpace: aeroSpace) : nil
   let border =
     config.border.enable
-    ? Border(config: config.border, aeroSpace: aeroSpace, isHeld: { appear?.holds($0) ?? false })
+    ? Border(
+      config: config.border, aeroSpace: aeroSpace, isHeld: { appear?.holds($0) ?? false },
+      isBelow: { layers?.isBelow($0) ?? false })
     : nil
 
   if config.bar.enable {
@@ -44,6 +47,11 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   }
   if config.restore.enable {
     parts.append(Restore(aeroSpace: aeroSpace))
+  }
+  if config.layers.enable {
+    let made = Layers(aeroSpace: aeroSpace, wakeBorder: { border?.wake() })
+    layers = made
+    parts.append(made)
   }
   if config.drag.enable {
     parts.append(Drag(config: config.drag))

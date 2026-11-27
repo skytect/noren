@@ -48,8 +48,6 @@ final class Appear: Part {
   private static let stillInterval = Duration.seconds(1.0 / 30)
   /// The longest a cover stays up, whatever else happens
   private static let coverLimit = Duration.seconds(2)
-  /// How long noren waits to hand the payload a message, in seconds
-  nonisolated private static let sendTimeout: CFTimeInterval = 0.25
 
   private let log = Logger(subsystem: "local.noren", category: "appear")
   private let aeroSpace: AeroSpaceClient
@@ -180,18 +178,8 @@ final class Appear: Part {
   private func send(_ message: NORMessage, _ window: CGWindowID) {
     sending = Task { [previous = sending] in
       await previous?.value
-      await Self.deliver(message, window)
+      _ = await DockPayload.send(message, [window])
     }
-  }
-
-  /// Hands the payload `message` about `window`. Off the main thread: sending may wait up to
-  /// sendTimeout.
-  @concurrent
-  nonisolated private static func deliver(_ message: NORMessage, _ window: CGWindowID) async {
-    // No payload in the Dock: nothing is hidden
-    guard let port = CFMessagePortCreateRemote(nil, NOR_DOCK_PORT as CFString) else { return }
-    let data = withUnsafeBytes(of: window) { Data($0) }
-    CFMessagePortSendRequest(port, message.rawValue, data as CFData, sendTimeout, 0, nil, nil)
   }
 
   /// Counts `window` as held for `duration` more, then lets the border look at it

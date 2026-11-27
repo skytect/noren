@@ -30,6 +30,7 @@ Each part has `enable` (default `true`).
 | `[appear]` | New windows shown only once in place (needs the [Dock payload](dock.md)) |
 | `[displays]` | Where the screens sit, and the wallpaper |
 | `[restore]` | Apps and their windows brought back after a restart |
+| `[layers]` | Floating windows kept above tiled ones; a fullscreen window covers them (needs the [Dock payload](dock.md)) |
 
 ## `[bar]`
 

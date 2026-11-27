@@ -21,6 +21,12 @@
 // moves the window as it does one dragged by its title bar, in any app, where an app's own
 // Accessibility answers lag behind the pointer.
 //
+// Tiled windows sit one level below other windows (NORMessageBelow, Layers.swift), so floating
+// ones stay above them: the window's sublevel, as yabai's scripting addition sets a window's layer
+// (do_window_layer in src/osax/payload.m). The windows a sunk window owns, its sheets and popups,
+// stay at the normal level, as yabai keeps them (window_manager_set_window_layer in
+// src/window_manager.c), so they still show over the floating windows.
+//
 // Needs System Integrity Protection partly off: see docs/dock.md.
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
@@ -61,6 +67,9 @@ typedef CGError (*SLSTransactionSetWindowSystemAlphaFunction)(CFTypeRef, uint32_
 typedef CGError (*SLSTransactionCommitFunction)(CFTypeRef, int);
 typedef CGError (*SLSMoveWindowWithGroupFunction)(int, uint32_t, CGPoint *);
 typedef void (*SLSReassociateWindowsSpacesByGeometryFunction)(int, CFArrayRef);
+typedef CGError (*SLSSetWindowSubLevelFunction)(int, uint32_t, int);
+typedef CFArrayRef (*SLSCopyAssociatedWindowsFunction)(int, uint32_t);
+typedef uint32_t (*SLSWindowIteratorGetWindowIDFunction)(CFTypeRef);
 
 static SLSGetWindowOwnerFunction gGetWindowOwner;
 static SLSSetWindowTagsFunction gSetWindowTags;
@@ -75,6 +84,9 @@ static SLSTransactionSetWindowSystemAlphaFunction gSetSystemAlpha;
 static SLSTransactionCommitFunction gCommit;
 static SLSMoveWindowWithGroupFunction gMoveWindow;
 static SLSReassociateWindowsSpacesByGeometryFunction gReassociate;
+static SLSSetWindowSubLevelFunction gSetSubLevel;
+static SLSCopyAssociatedWindowsFunction gCopyAssociated;
+static SLSWindowIteratorGetWindowIDFunction gGetWindowID;
 
 static int gConnection;  // the Dock's
 static BOOL gHides;      // NO when noren could not reach the payload: then nothing is hidden
@@ -224,6 +236,34 @@ static void Move(NORMove move) {
   gReassociate(gConnection, (__bridge CFArrayRef) @[ @(move.window) ]);
 }
 
+// Puts `window` below the normal level, or back at it; the windows it owns stay at the normal
+// level. Runs on gQueue.
+static void SetLayer(uint32_t window, BOOL below) {
+  int normal = CGWindowLevelForKey(kCGNormalWindowLevelKey);
+  gSetSubLevel(gConnection, window, below ? CGWindowLevelForKey(kCGBackstopMenuLevelKey) : normal);
+  CFArrayRef associated = gCopyAssociated(gConnection, window);
+  if (!associated) return;
+  CFTypeRef query = gQueryWindows(gConnection, associated, (uint32_t)CFArrayGetCount(associated));
+  CFRelease(associated);
+  if (!query) return;
+  // Each window owned by `window` or by one of its own, found as the walk reaches its owner
+  NSMutableArray<NSArray<NSNumber *> *> *relations = [NSMutableArray array];
+  CFTypeRef iterator = gCopyWindows(query);
+  while (iterator && gAdvance(iterator)) {
+    [relations addObject:@[ @(gGetParentID(iterator)), @(gGetWindowID(iterator)) ]];
+  }
+  if (iterator) CFRelease(iterator);
+  CFRelease(query);
+  NSMutableArray<NSNumber *> *owners = [NSMutableArray arrayWithObject:@(window)];
+  for (NSUInteger i = 0; i < owners.count; i++) {
+    for (NSArray<NSNumber *> *relation in relations) {
+      if (![relation[0] isEqual:owners[i]] || [owners containsObject:relation[1]]) continue;
+      gSetSubLevel(gConnection, relation[1].unsignedIntValue, normal);
+      [owners addObject:relation[1]];
+    }
+  }
+}
+
 // noren's messages, on gQueue
 static CFDataRef Received(CFMessagePortRef port, SInt32 message, CFDataRef data, void *info) {
   if (!data) return NULL;
@@ -234,11 +274,21 @@ static CFDataRef Received(CFMessagePortRef port, SInt32 message, CFDataRef data,
     Move(move);
     return NULL;
   }
-  if (message != NORMessageShow && message != NORMessageReveal) return NULL;
   NSData *bytes = (__bridge NSData *)data;
   const uint32_t *windows = bytes.bytes;
   for (NSUInteger i = 0; i < bytes.length / sizeof(uint32_t); i++) {
-    Show(windows[i], message == NORMessageReveal);
+    switch (message) {
+      case NORMessageShow:
+      case NORMessageReveal:
+        Show(windows[i], message == NORMessageReveal);
+        break;
+      case NORMessageBelow:
+      case NORMessageNormal:
+        SetLayer(windows[i], message == NORMessageBelow);
+        break;
+      default:
+        return NULL;
+    }
   }
   return NULL;
 }
@@ -265,9 +315,13 @@ __attribute__((constructor)) static void NORDockPayloadStart(void) {
   gCommit = dlsym(skyLight, "SLSTransactionCommit");
   gMoveWindow = dlsym(skyLight, "SLSMoveWindowWithGroup");
   gReassociate = dlsym(skyLight, "SLSReassociateWindowsSpacesByGeometry");
+  gSetSubLevel = dlsym(skyLight, "SLSSetWindowSubLevel");
+  gCopyAssociated = dlsym(skyLight, "SLSCopyAssociatedWindows");
+  gGetWindowID = dlsym(skyLight, "SLSWindowIteratorGetWindowID");
   if (!mainConnection || !registerNotifyProc || !gGetWindowOwner || !gSetWindowTags ||
       !gQueryWindows || !gCopyWindows || !gAdvance || !gGetLevel || !gGetTags || !gGetParentID ||
-      !gTransactionCreate || !gSetSystemAlpha || !gCommit || !gMoveWindow || !gReassociate) {
+      !gTransactionCreate || !gSetSystemAlpha || !gCommit || !gMoveWindow || !gReassociate ||
+      !gSetSubLevel || !gCopyAssociated || !gGetWindowID) {
     NSLog(@"noren: SkyLight calls not found; windows keep their shadows and show as they open");
     return;
   }
