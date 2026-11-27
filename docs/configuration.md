@@ -35,7 +35,7 @@ Each part has `enable` (default `true`).
 
 | Key | Default | |
 | --- | --- | --- |
-| `height` | worked out | In points, more than 0: the tallest menu bar among the screens, the one beside a notch |
+| `height` | worked out | In points, more than 0: each screen's own menu bar height. Set, the least on every screen |
 | `accent` | the system blue | The focused workspace |
 | `text` | `d9d9d9` | |
 | `dim` | `808080` | Workspaces without windows |

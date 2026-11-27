@@ -58,17 +58,14 @@ preset = 'qwerty'
 
 # 12 points between windows, none at the screen's edges (the screen around is black, and the
 # focused window's border is drawn inside its edge by noren).
-# The top leaves room for noren's bar, 54 points on every screen (the built-in screen's menu bar,
-# the tallest, which noren matches everywhere), over the macOS menu bar. AeroSpace does not keep
-# windows below the menu bar itself: on the built-in screen it starts them at the notch's 48
-# points, 6 short of the bar; on other screens, where macOS keeps no room for the menu bar, at the
-# top.
+# noren's bar covers each screen's menu bar at its height, and AeroSpace starts windows below the
+# menu bar, so the top gap is the same on every screen.
 [gaps]
 inner.horizontal = 12
 inner.vertical = 12
 outer.left = 0
 outer.bottom = 0
-outer.top = [{ monitor."built-in" = 6 }, 54]
+outer.top = 6
 outer.right = 0
 
 # 'main' binding mode declaration

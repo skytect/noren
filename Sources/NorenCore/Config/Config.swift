@@ -31,7 +31,7 @@ public struct PartConfig: Equatable, Sendable {
 /// The bar over the menu bar.
 public struct BarConfig: Equatable, Sendable {
   public var enable = true
-  /// In points; nil for the tallest menu bar among the screens (the one beside a notch).
+  /// In points, the least on any screen; nil for each screen's own menu bar height.
   public var height: Double?
   public var accent: RGB?
   public var text: RGB?

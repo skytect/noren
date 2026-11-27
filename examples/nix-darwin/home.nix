@@ -104,8 +104,8 @@ in
   services.noren = {
     enable = true;
     app = signed.noren.path;
-    # noren.toml (docs/configuration.md). Left out, so noren works them out: the bar's height (the
-    # notch's menu bar), the key that opens Notification Center (darwin.nix), and the apps
+    # noren.toml (docs/configuration.md). Left out, so noren works them out: the bar's height (each
+    # screen's menu bar), the key that opens Notification Center (darwin.nix), and the apps
     # AeroSpace floats (aerospace.toml's rules).
     settings = {
       # One Dark

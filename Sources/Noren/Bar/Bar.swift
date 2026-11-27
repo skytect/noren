@@ -141,7 +141,7 @@ final class Bar: Part {
 
   private func buildScreens() {
     for screen in screens { screen.close() }
-    let height = barHeight()
+    let height = configuredHeight()
     screens = NSScreen.screens.enumerated().map { index, nsScreen in
       let screen = BarScreen(
         screen: nsScreen, index: index, minimumHeight: height, bar: self,
@@ -151,17 +151,17 @@ final class Bar: Part {
     }
   }
 
-  /// The configured height, or the tallest menu bar among the screens, the one beside a notch.
-  private func barHeight() -> CGFloat {
+  /// The configured height; else none, so each screen's bar is its own menu bar's height.
+  private func configuredHeight() -> CGFloat {
     if let height = config.height { return height }
-    let tallest = NSScreen.screens.map { $0.frame.maxY - $0.visibleFrame.maxY }.max() ?? 0
-    if tallest <= 0 && !reportedNoHeight {
+    let menuBarShown = NSScreen.screens.contains { $0.frame.maxY > $0.visibleFrame.maxY }
+    if !menuBarShown && !reportedNoHeight {
       reportedNoHeight = true
       Problems.report(
         "macOS hides the menu bar on every screen, so the bar has no height of its own; "
           + "set bar.height")
     }
-    return tallest
+    return 0
   }
 
   /// Whether `point`, in screen coordinates, is in some screen's menu bar.
