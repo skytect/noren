@@ -1,0 +1,17 @@
+diff --git a/Sources/AppBundle/tree/MacWindow.swift b/Sources/AppBundle/tree/MacWindow.swift
+index c37eee0..0353f1a 100644
+--- a/Sources/AppBundle/tree/MacWindow.swift
++++ b/Sources/AppBundle/tree/MacWindow.swift
+@@ -102,7 +102,11 @@ final class MacWindow: Window {
+                     let deadWindowFocus = deadWindowWorkspace.toLiveFocus()
+                     _ = setFocus(to: deadWindowFocus)
+                     // Guard against "Apple Reminders popup" bug: https://github.com/nikitabobko/AeroSpace/issues/201
+-                    if focus.windowOrNil?.app.pid != app.pid {
++                    //  Forced only when macOS wouldn't move the focus itself: another app had it, or it
++                    //  goes to another app's window. Closing the focused window, macOS keeps its app
++                    //  in front, or (an app that hides when its window closes) picks the app used last,
++                    //  maybe one without windows
++                    if focus.windowOrNil?.app.pid != app.pid || deadWindowFocus.windowOrNil?.app.pid != app.pid {
+                         // Force focus to fix macOS annoyance with focused apps without windows.
+                         //   https://github.com/nikitabobko/AeroSpace/issues/65
+                         deadWindowFocus.windowOrNil?.nativeFocus()

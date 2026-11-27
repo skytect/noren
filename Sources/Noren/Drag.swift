@@ -1,12 +1,14 @@
-// Ctrl+drag moves a window: hold Ctrl and drag anywhere in a window, as Super+drag does on
-// Hyprland (with a keyboard remapper, the Super key can be the Ctrl key).
+// A drag with a key held (DragConfig's modifier, Alt unless set) moves a window: hold it and drag
+// anywhere in a window, as Super+drag does on Hyprland. Called Ctrl+drag below, as it is set up
+// here with a remapper's Super key sending Ctrl.
 //
-// An event tap takes a left-button press with Ctrl (without Cmd) over an app's window, and the drag
+// An event tap takes a left-button press with the key (and no other of Ctrl, Alt and Cmd) over an
+// app's window, and the drag
 // that follows: the app sees neither, so it works the same in every app, AppKit or not (Chromium
 // and Electron windows ignore macOS's own Ctrl+Cmd+drag, NSWindowShouldDragOnGesture). The window
 // is focused at the press, so AeroSpace takes the move for a drag of the focused window, and the
 // release goes on to the app and AeroSpace, which puts the window where it was dropped. The cost:
-// Ctrl+click over a window is no longer a right-click.
+// a click with the key over a window no longer reaches the app (with Ctrl: no right-click).
 //
 // The window moves from inside the Dock when the Dock payload is there (NORMessageMove, docs/
 // dock.md): the window server moves it as it does one dragged by its title bar. Without it, through
@@ -22,6 +24,7 @@
 // where a tap left running would hold the clicks, and on a first grant it can arrive before the
 // grant is committed, so a check made on it reads the old answer.
 import AppKit
+import NorenCore
 import NorenPrivate
 import Synchronization
 import os
@@ -37,10 +40,21 @@ final class Drag: Part {
   }
 
   private let log = Logger(subsystem: "local.noren", category: "drag")
+  /// The key held for a drag
+  private let modifier: CGEventFlags
   /// nil while there is no tap
   private var tap: (port: CFMachPort, source: CFRunLoopSource)?
   /// The drag under way, nil when there is none
   private var dragged: Dragged?
+
+  init(config: DragConfig) {
+    modifier =
+      switch config.modifier {
+      case .alt: .maskAlternate
+      case .ctrl: .maskControl
+      case .cmd: .maskCommand
+      }
+  }
 
   func start() {
     // Asks once (the system prompt); the later looks take no options: an empty dictionary there
@@ -50,7 +64,7 @@ final class Drag: Part {
     if AXIsProcessTrustedWithOptions(prompt) {
       startTap()
     } else {
-      log.info("no Accessibility permission yet: Ctrl+drag starts once it is granted")
+      log.info("no Accessibility permission yet: dragging windows starts once it is granted")
     }
     let timer = Timer(timeInterval: Self.grantCheckInterval, repeats: true) { [unowned self] _ in
       MainActor.assumeIsolated { grantMayHaveChanged() }
@@ -80,14 +94,14 @@ final class Drag: Part {
           return passed ? Unmanaged.passUnretained(event) : nil
         }, userInfo: Unmanaged.passUnretained(self).toOpaque())
     else {
-      log.error("could not create the event tap; Ctrl+drag is off")
+      log.error("could not create the event tap; dragging windows is off")
       return
     }
     let source = CFMachPortCreateRunLoopSource(nil, port, 0)!
     CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
     CGEvent.tapEnable(tap: port, enable: true)
     tap = (port, source)
-    log.info("Ctrl+drag on")
+    log.info("dragging windows on")
   }
 
   private func stopTap() {
@@ -98,7 +112,7 @@ final class Drag: Part {
     self.tap = nil
     dragged?.mover.finish()
     dragged = nil
-    log.info("Accessibility permission gone: Ctrl+drag off until it is back")
+    log.info("Accessibility permission gone: dragging windows off until it is back")
   }
 
   /// Follows `event`; false to take it from the app under the pointer.
@@ -110,8 +124,8 @@ final class Drag: Part {
     case .leftMouseDown:
       dragged?.mover.finish()
       dragged = nil
-      guard event.flags.contains(.maskControl), !event.flags.contains(.maskCommand),
-        let window = Self.window(at: event.location)
+      let held = event.flags.intersection([.maskControl, .maskAlternate, .maskCommand])
+      guard held == modifier, let window = Self.window(at: event.location)
       else { return true }
       let mover = Mover(window: window.id, pid: window.pid)
       NSRunningApplication(processIdentifier: window.pid)?.activate()

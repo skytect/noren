@@ -1,0 +1,16 @@
+diff --git a/Sources/AppBundle/tree/MacApp.swift b/Sources/AppBundle/tree/MacApp.swift
+index 546d4e8..1dee7c1 100644
+--- a/Sources/AppBundle/tree/MacApp.swift
++++ b/Sources/AppBundle/tree/MacApp.swift
+@@ -384,7 +384,10 @@ final class MacApp: AbstractApp {
+     private var bgTabsScheduledForPrune: Set<UInt32> = []
+     private var lifeStatusesOfLastRefresh: [UInt32: WindowLifeStatus] = [:]
+     @MainActor private func nonidempotentNativeTabSwapHeuristic(_ aliveOrInvisible: inout [UInt32: WindowLifeStatus]) {
+-        let noLongerAlive = lifeStatusesOfLastRefresh.filter { (id, lifeStatus) in lifeStatus == .alive && aliveOrInvisible[id] != .alive }
++        // A background tab is still there, only no longer alive. A window that is gone was closed:
++        // another window of the app shown in the same refresh (an editor shown as an overlay closes)
++        // is not its tab
++        let noLongerAlive = lifeStatusesOfLastRefresh.filter { (id, lifeStatus) in lifeStatus == .alive && aliveOrInvisible[id] == .invisible }
+         let becameAlive = aliveOrInvisible.filter { (id, lifeStatus) in lifeStatus == .alive && lifeStatusesOfLastRefresh[id] != .alive }
+         lifeStatusesOfLastRefresh = aliveOrInvisible
+         if let backgroundTabId = noLongerAlive.singleOrNil()?.key,

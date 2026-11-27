@@ -1,0 +1,135 @@
+# noren's AeroSpace config: what the AeroSpace inside Noren.app runs with while there is no
+# ~/.aerospace.toml or ~/.config/aerospace/aerospace.toml. It is a Hyprland-like layout on the Alt
+# key, with the gaps noren's bar and border need. To change it, copy it to ~/.aerospace.toml and
+# edit that: AeroSpace reads it from then on.
+#
+# Reference: https://nikitabobko.github.io/AeroSpace/guide
+
+config-version = 2
+
+# Workspaces 1-10 always exist, so noren's swipe strip can step through empty ones too
+persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+
+# noren starts AeroSpace as a login agent of its own
+start-at-login = false
+after-login-command = []
+after-startup-command = []
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+accordion-padding = 50
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+automatically-unhide-macos-hidden-apps = true
+
+[key-mapping]
+preset = 'qwerty'
+
+# Where `exec-and-forget` finds commands, noren's among them: Homebrew's and nix-darwin's
+[exec]
+inherit-env-vars = true
+[exec.env-vars]
+PATH = '/opt/homebrew/bin:/opt/homebrew/sbin:/run/current-system/sw/bin:${PATH}'
+
+# 12 points between windows and none at the screen's edges: noren draws the focused window's border
+# inside its edge, and its bar covers the menu bar, which AeroSpace keeps windows below
+[gaps]
+inner.horizontal = 12
+inner.vertical = 12
+outer.left = 0
+outer.bottom = 0
+outer.top = 6
+outer.right = 0
+
+[mode.main.binding]
+# Focus, move and resize, as Super+H/J/K/L and its Shift and Alt layers on Hyprland
+alt-h = 'focus --boundaries all-monitors-outer-frame left'
+alt-j = 'focus --boundaries all-monitors-outer-frame down'
+alt-k = 'focus --boundaries all-monitors-outer-frame up'
+alt-l = 'focus --boundaries all-monitors-outer-frame right'
+alt-shift-h = 'move --boundaries all-monitors-outer-frame left'
+alt-shift-j = 'move --boundaries all-monitors-outer-frame down'
+alt-shift-k = 'move --boundaries all-monitors-outer-frame up'
+alt-shift-l = 'move --boundaries all-monitors-outer-frame right'
+alt-ctrl-h = 'resize width -20'
+alt-ctrl-l = 'resize width +20'
+alt-ctrl-k = 'resize height -20'
+alt-ctrl-j = 'resize height +20'
+
+# Close the window, float or tile it, fill the screen with it
+alt-q = 'close'
+alt-esc = 'layout floating tiling'
+alt-f = 'fullscreen'
+alt-slash = 'layout tiles horizontal vertical'
+alt-comma = 'layout accordion horizontal vertical'
+
+# Workspaces: go to one, or take the window there and follow it; the previous and next one
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+alt-7 = 'workspace 7'
+alt-8 = 'workspace 8'
+alt-9 = 'workspace 9'
+alt-0 = 'workspace 10'
+alt-shift-1 = ['move-node-to-workspace 1', 'workspace 1']
+alt-shift-2 = ['move-node-to-workspace 2', 'workspace 2']
+alt-shift-3 = ['move-node-to-workspace 3', 'workspace 3']
+alt-shift-4 = ['move-node-to-workspace 4', 'workspace 4']
+alt-shift-5 = ['move-node-to-workspace 5', 'workspace 5']
+alt-shift-6 = ['move-node-to-workspace 6', 'workspace 6']
+alt-shift-7 = ['move-node-to-workspace 7', 'workspace 7']
+alt-shift-8 = ['move-node-to-workspace 8', 'workspace 8']
+alt-shift-9 = ['move-node-to-workspace 9', 'workspace 9']
+alt-shift-0 = ['move-node-to-workspace 10', 'workspace 10']
+alt-cmd-h = 'workspace prev'
+alt-cmd-l = 'workspace next'
+alt-cmd-shift-h = ['move-node-to-workspace prev', 'workspace prev']
+alt-cmd-shift-l = ['move-node-to-workspace next', 'workspace next']
+
+# A terminal, a Finder window at home, and the lock screen
+alt-enter = 'exec-and-forget open -n -a Terminal'
+alt-e = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window to home' -e 'tell application "Finder" to activate' '''
+alt-backslash = 'exec-and-forget noren lock'
+
+alt-shift-semicolon = 'mode service'
+
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main']
+backspace = ['close-all-windows-but-current', 'mode main']
+alt-shift-h = ['join-with left', 'mode main']
+alt-shift-j = ['join-with down', 'mode main']
+alt-shift-k = ['join-with up', 'mode main']
+alt-shift-l = ['join-with right', 'mode main']
+
+# Settings and utility windows float
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.calculator'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Passwords'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.AppStore'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.installer'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.archiveutility'
+run = 'layout floating'

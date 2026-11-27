@@ -38,6 +38,24 @@ import Testing
     #expect(config.strip.enable == false)
   }
 
+  @Test func `a drag moves windows with Alt unless another key is set`() throws {
+    #expect(try Config(toml: "").drag.modifier == .alt)
+    #expect(try Config(toml: "[drag]\nmodifier = \"ctrl\"").drag.modifier == .ctrl)
+  }
+
+  @Test func `a drag key noren does not know is refused, named`() {
+    let error = #expect(throws: ConfigError.self) {
+      try Config(toml: "[drag]\nmodifier = \"super\"")
+    }
+
+    #expect(error?.description.hasPrefix("drag.modifier:") == true)
+  }
+
+  @Test func `noren starts its AeroSpace unless told something else does`() throws {
+    #expect(try Config(toml: "").aerospace.start)
+    #expect(try Config(toml: "[aerospace]\nstart = false").aerospace.start == false)
+  }
+
   @Test func `an unknown key is named with its table`() {
     #expect(throws: ConfigError("bar.colour: unknown key")) {
       try Config(toml: "[bar]\ncolour = \"ffffff\"")

@@ -1,8 +1,11 @@
 # noren as an app bundle, $out/Applications/Noren.app: the Swift app, the Dock payload and its
-# loader (Dock/), and the icon; $out/bin/noren is the app's binary, for the commands. The one build
+# loader (Dock/), the icon, and AeroSpace (nix/aerospace): its app in Contents/Helpers, its
+# `aerospace` command beside noren's, and the login agent noren registers to run it
+# (Contents/Library/LaunchAgents, through SMAppService). $out/bin has both commands. The one build
 # of the bundle; the release workflow signs and ships it.
 {
   lib,
+  aerospace,
   stdenv,
   swift,
   swiftpm,
@@ -69,6 +72,26 @@ stdenv.mkDerivation (finalAttrs: {
     install -Dm755 noren-dock $app/MacOS/noren-dock
     install -Dm644 dock-payload.dylib $app/Resources/dock-payload.dylib
     install -Dm644 noren.icns $app/Resources/noren.icns
+    mkdir -p $app/Helpers
+    cp -R ${aerospace}/Applications/AeroSpace.app $app/Helpers/
+    install -Dm755 ${lib.getExe aerospace} $app/MacOS/aerospace
+    # local.noren.aerospace: AeroSpace in the login session, kept running; its own agent, so noren
+    # restarting or updating alone leaves it, and the windows, as they are
+    install -d $app/Library/LaunchAgents
+    cat > $app/Library/LaunchAgents/local.noren.aerospace.plist <<PLIST
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>Label</key><string>local.noren.aerospace</string>
+      <key>BundleProgram</key><string>Contents/Helpers/AeroSpace.app/Contents/MacOS/AeroSpace</string>
+      <key>RunAtLoad</key><true/>
+      <key>KeepAlive</key><true/>
+      <key>ProcessType</key><string>Interactive</string>
+      <key>LimitLoadToSessionType</key><string>Aqua</string>
+    </dict>
+    </plist>
+    PLIST
     cat > $app/Info.plist <<PLIST
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -88,6 +111,11 @@ stdenv.mkDerivation (finalAttrs: {
     PLIST
     mkdir -p $out/bin
     ln -s ../Applications/Noren.app/Contents/MacOS/noren $out/bin/noren
+    ln -s ../Applications/Noren.app/Contents/MacOS/aerospace $out/bin/aerospace
+    mkdir -p $out/share
+    for dir in man bash-completion fish zsh; do
+      if [ -e ${aerospace}/share/$dir ]; then ln -s ${aerospace}/share/$dir $out/share/$dir; fi
+    done
     runHook postInstall
   '';
 

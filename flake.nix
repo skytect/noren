@@ -1,5 +1,5 @@
 {
-  description = "Bar, workspace strip and window border for the AeroSpace window manager";
+  description = "A Hyprland-like desktop for macOS, with AeroSpace inside";
 
   inputs.nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz";
 
@@ -11,7 +11,11 @@
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
-      packages.${system}.default = pkgs.callPackage ./nix/package.nix { };
+      packages.${system} = {
+        default = pkgs.callPackage ./nix/package.nix { inherit (self.packages.${system}) aerospace; };
+        # The AeroSpace noren carries, on its own
+        aerospace = pkgs.callPackage ./nix/aerospace/package.nix { };
+      };
       # noren in the login session, and its config (services.noren)
       homeManagerModules.default = import ./nix/home-manager.nix self;
       # The Dock payload's root loader (services.noren-dock)

@@ -25,7 +25,7 @@ Each part has `enable` (default `true`).
 | `[stay]` | Staying on a workspace whose last window closed |
 | `[pointer]` | The pointer following keyboard focus |
 | `[border]` | The focused window's border |
-| `[drag]` | Moving a window by dragging anywhere in it with Ctrl held |
+| `[drag]` | Moving a window by dragging anywhere in it with a key held |
 | `[dwindle]` | New windows nesting as in a dwindle layout |
 | `[appear]` | New windows shown only once in place (needs the [Dock payload](dock.md)) |
 | `[displays]` | Where the screens sit, and the wallpaper |
@@ -58,12 +58,22 @@ Each part has `enable` (default `true`).
 | `color` | the system accent colour | At the top-left corner |
 | `color-end` | `color` | At the bottom-right corner, blended from `color` |
 
+## `[aerospace]`
+
+| Key | Default | |
+| --- | --- | --- |
+| `start` | `true` | Whether noren starts the AeroSpace inside it, as the login agent `local.noren.aerospace`. The home-manager module runs that agent itself and sets this to `false` |
+
 ## `[drag]`
 
-Ctrl+drag moves the window under the pointer in any app. It needs noren allowed Accessibility,
+| Key | Default | |
+| --- | --- | --- |
+| `modifier` | `"alt"` | The key held: `"alt"`, `"ctrl"` or `"cmd"` |
+
+A drag with the key held moves the window under the pointer, in any app. It needs noren allowed Accessibility,
 which it asks for when it starts. With the [Dock payload](dock.md) the window moves as smoothly as
 one dragged by its title bar; without it, through Accessibility, which a busy app answers late.
-Ctrl+click over a window is no longer a right-click.
+A click with the key held over a window no longer reaches the app (with Ctrl: no right-click).
 
 ## `[appear]`
 

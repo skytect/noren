@@ -11,12 +11,35 @@ public struct Config: Equatable, Sendable {
   public var stay = StayConfig()
   public var pointer = PartConfig()
   public var border = BorderConfig()
-  public var drag = PartConfig()
+  public var drag = DragConfig()
   public var dwindle = PartConfig()
   public var appear = AppearConfig()
   public var displays = DisplaysConfig()
   public var restore = PartConfig()
   public var focusRules: [FocusRule] = []
+  public var aerospace = AeroSpaceAgentConfig()
+
+  public init() {}
+}
+
+/// The AeroSpace noren carries (Noren.app/Contents/Helpers/AeroSpace.app).
+public struct AeroSpaceAgentConfig: Equatable, Sendable {
+  /// Whether noren starts it, as a login agent of its own; false when something else does, such
+  /// as the nix module's launchd agent.
+  public var start = true
+
+  public init() {}
+}
+
+/// Moving a window by dragging anywhere in it with a key held.
+public struct DragConfig: Equatable, Sendable {
+  /// The key held
+  public enum Modifier: String, Equatable, Sendable {
+    case alt, ctrl, cmd
+  }
+
+  public var enable = true
+  public var modifier = Modifier.alt
 
   public init() {}
 }

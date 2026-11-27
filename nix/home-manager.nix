@@ -1,5 +1,6 @@
-# The home-manager module: noren as a launchd agent in the login session, its noren.toml, and the
-# `noren` command on PATH.
+# The home-manager module: noren as a launchd agent in the login session, the AeroSpace inside it
+# as another (local.noren.aerospace, the agent noren would otherwise register itself), its
+# noren.toml, and the `noren` and `aerospace` commands on PATH.
 self:
 {
   config,
@@ -35,6 +36,16 @@ in
       '';
     };
 
+    aerospace.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether to run the AeroSpace inside Noren.app as a launchd agent of its own,
+        local.noren.aerospace. It keeps running while noren restarts alone. Off, noren registers the
+        same agent itself, through macOS's Login Items.
+      '';
+    };
+
     settings = lib.mkOption {
       inherit (toml) type;
       default = { };
@@ -54,6 +65,21 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # noren leaves starting AeroSpace to the agent below
+    services.noren.settings = lib.mkIf cfg.aerospace.enable { aerospace.start = false; };
+
+    launchd.agents.aerospace = lib.mkIf cfg.aerospace.enable {
+      enable = true;
+      config = {
+        Label = "local.noren.aerospace";
+        ProgramArguments = [ "${cfg.app}/Contents/Helpers/AeroSpace.app/Contents/MacOS/AeroSpace" ];
+        RunAtLoad = true;
+        KeepAlive = true;
+        ProcessType = "Interactive";
+        LimitLoadToSessionType = "Aqua";
+      };
+    };
+
     launchd.agents.noren = {
       enable = true;
       config = {
@@ -69,11 +95,12 @@ in
       source = toml.generate "noren.toml" cfg.settings;
     };
 
-    # Only the command: the whole package would add a second Noren.app to the applications
+    # Only the commands: the whole package would add a second Noren.app to the applications
     home.packages = [
       (pkgs.runCommand "noren-command" { meta.mainProgram = "noren"; } ''
         mkdir -p $out/bin
         ln -s ${lib.getExe cfg.package} $out/bin/noren
+        ln -s ${cfg.package}/bin/aerospace $out/bin/aerospace
       '')
     ];
 

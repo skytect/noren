@@ -5,6 +5,10 @@ import NorenCore
 /// Objective-C noren's order, with Appear last (see below).
 func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   var parts: [any Part] = []
+  // First: the AeroSpace the rest follow
+  if let aeroSpace = BundledAeroSpace(config: config.aerospace) {
+    parts.append(aeroSpace)
+  }
   // Parts that reach one another do so through closures over these, so any of them can be off
   // Made last, below
   var appear: Appear?
@@ -42,7 +46,7 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
     parts.append(Restore(aeroSpace: aeroSpace))
   }
   if config.drag.enable {
-    parts.append(Drag())
+    parts.append(Drag(config: config.drag))
   }
   if config.displays.enable {
     parts.append(Displays(config: config.displays))
