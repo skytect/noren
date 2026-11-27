@@ -1,4 +1,4 @@
-# The session: AeroSpace and noren, both running from their signed copies (signing.nix).
+# The session: noren, with the AeroSpace inside it, running from its signed copy (signing.nix).
 {
   lib,
   pkgs,
@@ -25,25 +25,11 @@ in
 
   home.stateVersion = "26.05";
 
-  # AeroSpace: the CLI from the package, the app from its signed copy, which keeps its
-  # Accessibility grant across updates. Vicinae: below
-  home.packages = [
-    pkgs.aerospace
-    pkgs.vicinae
-  ];
+  # Vicinae: below. AeroSpace comes inside noren, whose module runs it and puts `aerospace` on PATH
+  home.packages = [ pkgs.vicinae ];
   home.file.".aerospace.toml".source = pkgs.replaceVars ./aerospace.toml {
     inherit profile;
     home = "/Users/${username}";
-  };
-  launchd.agents.aerospace = {
-    enable = true;
-    config = {
-      ProgramArguments = [ "${signed.aerospace.path}/Contents/MacOS/AeroSpace" ];
-      RunAtLoad = true;
-      KeepAlive = true;
-      ProcessType = "Interactive";
-      LimitLoadToSessionType = "Aqua";
-    };
   };
   # AeroSpace reads its config only at start and on reload-config
   home.activation.reloadAerospaceConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
@@ -118,6 +104,8 @@ in
       };
       # Ctrl+Q runs a script rather than AeroSpace's `close`, so noren cannot work it out
       stay.close-bindings = [ "ctrl-q" ];
+      # Super+drag moves windows, on Ctrl as AeroSpace's bindings
+      drag.modifier = "ctrl";
       # Blue into purple, as Hyprland's gradient borders
       border = {
         color = "61afef";

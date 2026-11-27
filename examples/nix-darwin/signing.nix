@@ -16,11 +16,7 @@ let
   # Each program: what to copy from the store, where the signed copy lives, and the launchd job to
   # restart onto a new copy (gui/UID/… for an agent, system/… for a daemon)
   programs = {
-    aerospace = {
-      source = "${pkgs.aerospace}/Applications/AeroSpace.app";
-      path = "/Applications/AeroSpace.app";
-      restart = "gui/$uid/org.nix-community.home.aerospace";
-    };
+    # With the AeroSpace inside it, signed with it
     noren = {
       source = "${pkgs.noren}/Applications/Noren.app";
       path = "/Applications/Noren.app";

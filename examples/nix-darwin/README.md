@@ -12,7 +12,7 @@ kept in step with every change; take the parts you want.
 | --- | --- |
 | [`flake.nix`](flake.nix) | The inputs and the one `darwinConfigurations.example`; your account name goes here |
 | [`darwin.nix`](darwin.nix) | macOS's settings, kanata and its driver, noren's Dock payload |
-| [`home.nix`](home.nix) | AeroSpace, Vicinae, noren and its settings (`noren.toml`) |
+| [`home.nix`](home.nix) | noren with the AeroSpace inside it, its settings (`noren.toml`), Vicinae |
 | [`aerospace.toml`](aerospace.toml) | AeroSpace's config: the key bindings, workspaces, floating apps |
 | [`kanata.kbd`](kanata.kbd) | kanata's config: home-row modifiers and the Ctrl/Cmd trade |
 | [`signing.nix`](signing.nix) | Stable signatures, so macOS's permissions survive updates |
@@ -68,8 +68,9 @@ without the Ctrl/Cmd trade. Focusing any other window undoes both.
 - macOS's own reopening of windows after a restart off, as noren restores them itself.
 
 **Permissions.** AeroSpace, kanata and noren need Accessibility, Input Monitoring and, for noren,
-Screen Recording. [`signing.nix`](signing.nix) copies each to a fixed path and signs it with a
-certificate made on the Mac, so a nix update does not make macOS ask again.
+Screen Recording. [`signing.nix`](signing.nix) copies kanata and Noren.app, with the AeroSpace
+inside it, to fixed paths and signs them with a certificate made on the Mac, so a nix update does not
+make macOS ask again.
 
 ## Using it
 
