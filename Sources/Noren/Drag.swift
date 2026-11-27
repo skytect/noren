@@ -136,26 +136,22 @@ final class Drag: Part {
     }
   }
 
-  /// The app window at `point` (the window server's global coordinates): the frontmost window
-  /// there, past noren's own (the border lets clicks through) and see-through ones, if it is an app
-  /// window at the normal level, not the menu bar, the Dock or another app's overlay.
+  /// The app window a click at `point` (the window server's global coordinates) goes to, if it is
+  /// another app's at the normal window level: not the menu bar, the Dock or an overlay. Asked of
+  /// the window server's own hit test, which passes windows that let clicks through (noren's
+  /// border, MenuBarAgent's screen-wide one) as a click does.
   private static func window(at point: CGPoint) -> (id: CGWindowID, pid: pid_t, frame: CGRect)? {
-    let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-    guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+    let number = NSWindow.windowNumber(at: NSEvent.mouseLocation, belowWindowWithWindowNumber: 0)
+    guard number > 0,
+      let info = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(number))
+        as? [[String: Any]],
+      let window = info.first, window[kCGWindowLayer as String] as? Int == 0,
+      let pid = window[kCGWindowOwnerPID as String] as? pid_t,
+      pid != ProcessInfo.processInfo.processIdentifier,
+      let bounds = window[kCGWindowBounds as String] as? NSDictionary,
+      let frame = CGRect(dictionaryRepresentation: bounds), frame.contains(point)
     else { return nil }
-    let own = ProcessInfo.processInfo.processIdentifier
-    for window in windows {
-      guard let pid = window[kCGWindowOwnerPID as String] as? pid_t, pid != own,
-        (window[kCGWindowAlpha as String] as? Double ?? 1) > 0,
-        let bounds = window[kCGWindowBounds as String] as? NSDictionary,
-        let frame = CGRect(dictionaryRepresentation: bounds), frame.contains(point)
-      else { continue }
-      guard window[kCGWindowLayer as String] as? Int == 0,
-        let id = window[kCGWindowNumber as String] as? CGWindowID
-      else { return nil }
-      return (id, pid, frame)
-    }
-    return nil
+    return (CGWindowID(number), pid, frame)
   }
 
   /// The top edge of the screen at `point`, in the window server's global coordinates
