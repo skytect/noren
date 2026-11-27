@@ -29,18 +29,6 @@ let
   rev = "d69a64d833ca2cfe0e088cfae8e5e9751ec9eff3";
   # Upstream's MACOS_MIN_DEPLOYMENT_TARGET (versions.sh)
   minMacos = "13";
-in
-stdenv.mkDerivation (finalAttrs: {
-  pname = "aerospace";
-  version = "0.21.3-Beta-unstable-2026-11-24";
-
-  src = fetchFromGitHub {
-    owner = "nikitabobko";
-    repo = "AeroSpace";
-    inherit rev;
-    hash = "sha256-lKgvQRngHz5wuFYf+XPv4sZddk9ADJbOSK5gwP1bmEI=";
-  };
-
   # Focus fixes, both found with a screenshot tool's area captures:
   # - native-tabs-only (https://github.com/nikitabobko/AeroSpace/discussions/2414): the native tab
   #   heuristic takes only a window still there for the background tab. An area selection overlay
@@ -49,10 +37,34 @@ stdenv.mkDerivation (finalAttrs: {
   # - focus-after-close (https://github.com/nikitabobko/AeroSpace/discussions/2415): when a closed
   #   window's focus goes to another app's window, macOS gets that window too, not the app macOS
   #   picks, often one without windows.
+  # And monitor-geometry (https://github.com/nikitabobko/AeroSpace/pull/2405 at e948c6a, as is): a
+  # monitor's size was taken again only when the number of monitors changed, so a screen that took
+  # another's place at the same corner (unplugging an external display) kept that display's size.
   patches = [
     ./native-tabs-only.patch
     ./focus-after-close.patch
+    ./monitor-geometry.patch
   ];
+  # The version both binaries report: upstream's, and the patches' digest. noren restarts the
+  # AeroSpace running when it reports another version than its command (BundledAeroSpace.swift),
+  # so a change to the patches alone counts as another build too.
+  buildVersion =
+    let
+      digest = builtins.hashString "sha256" (lib.concatMapStrings (builtins.hashFile "sha256") patches);
+    in
+    "${version}+${builtins.substring 0 8 digest}";
+  version = "0.21.3-Beta-unstable-2026-11-24";
+in
+stdenv.mkDerivation (finalAttrs: {
+  pname = "aerospace";
+  inherit version patches;
+
+  src = fetchFromGitHub {
+    owner = "nikitabobko";
+    repo = "AeroSpace";
+    inherit rev;
+    hash = "sha256-lKgvQRngHz5wuFYf+XPv4sZddk9ADJbOSK5gwP1bmEI=";
+  };
 
   swiftpmDeps = fetchSwiftPMDeps {
     inherit (finalAttrs) pname version src;
@@ -88,7 +100,7 @@ stdenv.mkDerivation (finalAttrs: {
   # Read by both binaries from this section (Sources/Common/buildInfo.swift): version, commit,
   # short commit
   preBuild = ''
-    printf '%s\n%s\n%s\n' ${finalAttrs.version} ${rev} ${builtins.substring 0 7 rev} > "$NIX_BUILD_TOP/build-info.txt"
+    printf '%s\n%s\n%s\n' ${buildVersion} ${rev} ${builtins.substring 0 7 rev} > "$NIX_BUILD_TOP/build-info.txt"
     appendToVar swiftpmFlags -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __aero_build \
       -Xlinker "$NIX_BUILD_TOP/build-info.txt"
   '';
@@ -128,7 +140,7 @@ stdenv.mkDerivation (finalAttrs: {
       <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
       <key>CFBundleName</key><string>AeroSpace</string>
       <key>CFBundlePackageType</key><string>APPL</string>
-      <key>CFBundleShortVersionString</key><string>${finalAttrs.version}</string>
+      <key>CFBundleShortVersionString</key><string>${buildVersion}</string>
       <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
       <key>LSMinimumSystemVersion</key><string>${minMacos}.0</string>
       <key>LSUIElement</key><true/>
@@ -148,7 +160,7 @@ stdenv.mkDerivation (finalAttrs: {
   nativeInstallCheckInputs = [ versionCheckHook ];
   # The app answers --version without starting (Sources/AppBundle/initAppBundle.swift)
   postInstallCheck = ''
-    [ "$(timeout 30 "$out/Applications/AeroSpace.app/Contents/MacOS/AeroSpace" --version)" = "${finalAttrs.version} ${rev}" ]
+    [ "$(timeout 30 "$out/Applications/AeroSpace.app/Contents/MacOS/AeroSpace" --version)" = "${buildVersion} ${rev}" ]
   '';
 
   meta = {
