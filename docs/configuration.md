@@ -31,6 +31,7 @@ Each part has `enable` (default `true`).
 | `[displays]` | Where the screens sit, and the wallpaper |
 | `[restore]` | Apps and their windows brought back after a restart |
 | `[layers]` | Floating windows kept above tiled ones; a fullscreen window covers them (needs the [Dock payload](dock.md)) |
+| `[cursors]` | noren's cursors in every app: glass in the border's blue to purple. Turned off, the system's come back |
 
 ## `[bar]`
 

@@ -12,7 +12,8 @@ manager, which comes inside it:
 - focus kept on a workspace whose last window closed, and the pointer following keyboard focus;
 - Alt+drag to move a window, in any app, and new windows nesting as in a dwindle layout;
 - the screens kept where they belong, and the apps and their windows brought back after a restart;
-- commands run as focus moves into and out of chosen windows.
+- commands run as focus moves into and out of chosen windows;
+- its own cursors in every app, glass in the border's blue to purple.
 
 Every part can be turned off; see [docs/configuration.md](docs/configuration.md).
 

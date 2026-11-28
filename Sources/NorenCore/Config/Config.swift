@@ -17,6 +17,7 @@ public struct Config: Equatable, Sendable {
   public var displays = DisplaysConfig()
   public var restore = PartConfig()
   public var layers = PartConfig()
+  public var cursors = PartConfig()
   public var focusRules: [FocusRule] = []
   public var aerospace = AeroSpaceAgentConfig()
 

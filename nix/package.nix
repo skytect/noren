@@ -1,7 +1,7 @@
 # noren as an app bundle, $out/Applications/Noren.app: the Swift app, the Dock payload and its
-# loader (Dock/), the icon, and AeroSpace (nix/aerospace): its app in Contents/Helpers, its
-# `aerospace` command beside noren's, and the login agent noren registers to run it
-# (Contents/Library/LaunchAgents, through SMAppService). $out/bin has both commands. The one build
+# loader (Dock/), the icon, the cursors (assets/cursors), and AeroSpace (nix/aerospace): its app
+# in Contents/Helpers, its `aerospace` command beside noren's, and the login agent noren registers
+# to run it (Contents/Library/LaunchAgents, through SMAppService). $out/bin has both commands. The one build
 # of the bundle; the release workflow signs and ships it.
 {
   lib,
@@ -12,6 +12,7 @@
   fetchSwiftPMDeps,
   librsvg,
   libicns,
+  python3,
 }:
 let
   version = "0.1.0";
@@ -44,6 +45,12 @@ stdenv.mkDerivation (finalAttrs: {
     swiftpm
     librsvg
     libicns
+    # The cursors are baked from their drawings (assets/cursors/make.py)
+    (python3.withPackages (ps: [
+      ps.numpy
+      ps.scipy
+      ps.pillow
+    ]))
   ];
 
   # Swift Testing runs without XCTest, which nixpkgs does not have on macOS
@@ -63,6 +70,7 @@ stdenv.mkDerivation (finalAttrs: {
       rsvg-convert -w $size -h $size assets/icon.svg -o icon_$size.png
     done
     png2icns noren.icns icon_*.png
+    python3 assets/cursors/make.py cursors
   '';
 
   installPhase = ''
@@ -72,6 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
     install -Dm755 noren-dock $app/MacOS/noren-dock
     install -Dm644 dock-payload.dylib $app/Resources/dock-payload.dylib
     install -Dm644 noren.icns $app/Resources/noren.icns
+    cp -R cursors $app/Resources/Cursors
     mkdir -p $app/Helpers
     cp -R ${aerospace}/Applications/AeroSpace.app $app/Helpers/
     install -Dm755 ${lib.getExe aerospace} $app/MacOS/aerospace

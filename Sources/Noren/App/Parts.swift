@@ -51,6 +51,8 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   if config.drag.enable {
     parts.append(Drag(config: config.drag, aeroSpace: aeroSpace))
   }
+  // Always made: turned off, it puts back the system's cursors it replaced
+  parts.append(Cursors(config: config.cursors))
   if config.displays.enable {
     parts.append(Displays(config: config.displays))
   }
