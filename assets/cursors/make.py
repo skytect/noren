@@ -116,10 +116,11 @@ def cursor(number):
     return f"com.apple.cursor.{number}"
 
 
-# (file, the system cursors it replaces, hotspot, frames: lists of layers)
+# (file, the system cursors it replaces, hotspot, frames: lists of layers). macOS 27 takes the arrow and
+# I-beam only as ArrowS and IBeamS; it ignores plain IBeam, and Arrow is the same cursor as ArrowS
 CURSORS = [
     ("arrow", [cg("Arrow"), cg("ArrowS")], (5.5, 3.5), [ARROW_LAYERS]),
-    ("ibeam", [cg("IBeam"), cg("IBeamS"), cg("IBeamXOR")], (12, 12), [[line(IBEAM, width=1.8)]]),
+    ("ibeam", [cg("IBeamS"), cg("IBeamXOR")], (12, 12), [[line(IBEAM, width=1.8)]]),
     ("ibeam-horizontal", [cursor(26)], (12, 12), [[line(IBEAM, turn=90, width=1.8)]]),
     ("pointing", [cursor(13)], (9.75, 4), [[glass(HAND)]]),
     ("open-hand", [cursor(12)], (12, 12), [[glass(OPEN_HAND)]]),
