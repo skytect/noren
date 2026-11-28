@@ -10,6 +10,8 @@
 //                               Displays settings), marking the current one
 //   noren display-mode W H      changes to that size, in points (the sharpest mode of that size,
 //                               at the highest refresh rate), and keeps it across restarts
+//   noren resize ARROW [POINTS]  moves the edge between the focused window and its neighbour the
+//                               way ARROW (left, right, up, down) points, by POINTS (20)
 import Foundation
 
 enum Commands {
@@ -18,6 +20,7 @@ enum Commands {
            noren sidecar [list]
            noren lock [check]
            noren display-mode [WIDTH HEIGHT]
+           noren resize left|right|up|down [POINTS]
     """
 
   /// Runs the command `name` with `arguments`, and returns its exit status.
@@ -26,6 +29,7 @@ enum Commands {
     case "sidecar": Sidecar.run(arguments)
     case "lock": Lock.run(arguments)
     case "display-mode": DisplayModeCommand.run(arguments)
+    case "resize": Resize.run(arguments)
     default: fail(usage, status: 2)
     }
   }
