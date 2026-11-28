@@ -6,7 +6,7 @@ import NorenCore
 func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
   var parts: [any Part] = []
   // First: the AeroSpace the rest follow
-  if let aeroSpace = BundledAeroSpace(config: config.aerospace) {
+  if let aeroSpace = BundledAeroSpace() {
     parts.append(aeroSpace)
   }
   // Parts that reach one another do so through closures over these, so any of them can be off

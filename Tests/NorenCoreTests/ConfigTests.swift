@@ -51,11 +51,6 @@ import Testing
     #expect(error?.description.hasPrefix("drag.modifier:") == true)
   }
 
-  @Test func `noren starts its AeroSpace unless told something else does`() throws {
-    #expect(try Config(toml: "").aerospace.start)
-    #expect(try Config(toml: "[aerospace]\nstart = false").aerospace.start == false)
-  }
-
   @Test func `an unknown key is named with its table`() {
     #expect(throws: ConfigError("bar.colour: unknown key")) {
       try Config(toml: "[bar]\ncolour = \"ffffff\"")

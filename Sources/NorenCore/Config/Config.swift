@@ -19,16 +19,6 @@ public struct Config: Equatable, Sendable {
   public var layers = PartConfig()
   public var cursors = PartConfig()
   public var focusRules: [FocusRule] = []
-  public var aerospace = AeroSpaceAgentConfig()
-
-  public init() {}
-}
-
-/// The AeroSpace noren carries (Noren.app/Contents/Helpers/AeroSpace.app).
-public struct AeroSpaceAgentConfig: Equatable, Sendable {
-  /// Whether noren starts it, as a login agent of its own; false when something else does, such
-  /// as the nix module's launchd agent.
-  public var start = true
 
   public init() {}
 }

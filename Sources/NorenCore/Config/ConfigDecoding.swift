@@ -35,7 +35,6 @@ extension Config: Decodable {
   enum CodingKeys: String, CodingKey, CaseIterable {
     case bar, status, strip, stay, pointer, border, drag, dwindle, appear, displays, restore, layers
     case cursors
-    case aerospace
     case focusRules = "focusRule"
   }
 
@@ -56,19 +55,6 @@ extension Config: Decodable {
     layers = try container.value(.layers, default: layers)
     cursors = try container.value(.cursors, default: cursors)
     focusRules = try container.value(.focusRules, default: focusRules)
-    aerospace = try container.value(.aerospace, default: aerospace)
-  }
-}
-
-extension AeroSpaceAgentConfig: Decodable {
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case start
-  }
-
-  public init(from decoder: any Decoder) throws {
-    try rejectUnknownKeys(decoder, CodingKeys.self)
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    start = try container.value(.start, default: start)
   }
 }
 

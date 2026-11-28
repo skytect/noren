@@ -1,14 +1,14 @@
 // The AeroSpace inside Noren.app (Contents/Helpers/AeroSpace.app, built by nix/aerospace). It runs
 // as a login agent of its own, local.noren.aerospace (Contents/Library/LaunchAgents), which noren
-// registers through SMAppService unless [aerospace] start is false: then something else runs the
-// agent under that label (the nix module does), and a registration noren made before is withdrawn,
-// so the two never both load it. Being its own agent, AeroSpace keeps running, and the windows stay
-// where they are, while noren starts afresh or updates alone.
+// registers through SMAppService and nothing else loads: a second owner of the label is a job
+// neither can take back (launchd refuses the withdrawal, error 144). Being its own agent,
+// AeroSpace keeps running, and the windows stay where they are, while noren starts afresh or
+// updates alone.
 //
 // At start, another AeroSpace running (installed by hand or by Homebrew) is quit, and said so: two
-// would fight over every window. Then the agent is registered if it is not, and if the AeroSpace
-// running is another build than the one beside noren's `aerospace` command (noren was updated), it
-// is restarted onto it.
+// would fight over every window. Then the agent is registered and loaded if it is not, and if the
+// AeroSpace running is another build than the one beside noren's `aerospace` command (noren was
+// updated), it is restarted onto it.
 import AppKit
 import NorenCore
 import ServiceManagement
@@ -19,30 +19,23 @@ final class BundledAeroSpace: Part {
   private static let bundleId = "bobko.aerospace"
 
   private let log = Logger(subsystem: "local.noren", category: "aerospace")
-  private let config: AeroSpaceAgentConfig
   /// The bundled app and command
   private let app: URL
   private let command: URL
 
   /// nil when noren runs without the bundled AeroSpace (`swift run`): then AeroSpace is the user's
-  init?(config: AeroSpaceAgentConfig) {
+  init?() {
     let contents = Bundle.main.bundleURL.appending(path: "Contents")
     app = contents.appending(path: "Helpers/AeroSpace.app").resolvingSymlinksInPath()
     command = contents.appending(path: "MacOS/aerospace")
     guard FileManager.default.fileExists(atPath: app.path) else { return nil }
-    self.config = config
   }
 
   func start() {
     quitOthers()
-    if config.start {
-      register()
-      Task { await restartIfOtherBuild() }
-    } else {
-      Task {
-        await withdraw()
-        await restartIfOtherBuild()
-      }
+    Task {
+      await register()
+      await restartIfOtherBuild()
     }
   }
 
@@ -57,8 +50,19 @@ final class BundledAeroSpace: Part {
     }
   }
 
-  private func register() {
+  /// Registers the agent if it is not; registered yet not loaded (another owner of the label went
+  /// away, and macOS loads registered agents only at login), registers it afresh, which loads it
+  private func register() async {
     let service = SMAppService.agent(plistName: "\(Self.label).plist")
+    let target = "gui/\(getuid())/\(Self.label)"
+    if service.status == .enabled, await Self.run("/bin/launchctl", ["print", target])?.status != 0
+    {
+      do {
+        try await service.unregister()
+      } catch {
+        log.error("could not take back AeroSpace's unloaded agent: \(error, privacy: .public)")
+      }
+    }
     if service.status != .enabled {
       do {
         try service.register()
@@ -74,18 +78,6 @@ final class BundledAeroSpace: Part {
         "AeroSpace waits to be allowed: turn Noren on in System Settings > General > Login Items")
     default:
       Problems.report("AeroSpace could not be started (its agent is \(service.status))")
-    }
-  }
-
-  /// Takes back a registration noren made while it started AeroSpace itself
-  private func withdraw() async {
-    let service = SMAppService.agent(plistName: "\(Self.label).plist")
-    guard service.status != .notRegistered && service.status != .notFound else { return }
-    do {
-      try await service.unregister()
-      log.info("AeroSpace's agent is run by something else now; noren's registration withdrawn")
-    } catch {
-      Problems.report("could not withdraw noren's own AeroSpace agent: \(error)")
     }
   }
 

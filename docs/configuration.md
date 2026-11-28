@@ -60,12 +60,6 @@ Each part has `enable` (default `true`).
 | `color` | the system accent colour | At the top-left corner |
 | `color-end` | `color` | At the bottom-right corner, blended from `color` |
 
-## `[aerospace]`
-
-| Key | Default | |
-| --- | --- | --- |
-| `start` | `true` | Whether noren starts the AeroSpace inside it, registering the login agent `local.noren.aerospace`. `false` says something else runs that agent, and noren withdraws a registration it made before. The home-manager module runs the agent itself and sets this to `false` |
-
 ## `[drag]`
 
 | Key | Default | |
