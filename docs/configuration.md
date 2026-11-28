@@ -25,7 +25,7 @@ Each part has `enable` (default `true`).
 | `[stay]` | Staying on a workspace whose last window closed |
 | `[pointer]` | The pointer following keyboard focus |
 | `[border]` | The focused window's border |
-| `[drag]` | Moving a window by dragging anywhere in it with a key held |
+| `[drag]` | Moving a window by dragging anywhere in it with a key held, and resizing tiled windows by dragging the gap between them |
 | `[dwindle]` | New windows nesting as in a dwindle layout |
 | `[appear]` | New windows shown only once in place (needs the [Dock payload](dock.md)) |
 | `[displays]` | Where the screens sit, and the wallpaper |
@@ -75,6 +75,9 @@ A drag with the key held moves the window under the pointer, in any app. It need
 which it asks for when it starts. With the [Dock payload](dock.md) the window moves as smoothly as
 one dragged by its title bar; without it, through Accessibility, which a busy app answers late.
 A click with the key held over a window no longer reaches the app (with Ctrl: no right-click).
+
+Dragging the gap between two tiled windows, with no key held, resizes them; where gaps cross, both
+ways. Over a gap the pointer turns into a resize arrow.
 
 ## `[appear]`
 

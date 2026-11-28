@@ -1,7 +1,7 @@
-// The private SkyLight calls noren reads windows with, looked up at run time: the window server's
-// corner radii of a window (the border's corners), and its sublevel, its place among the windows
-// of its level (Layers' Dock payload puts tiled windows at the backstop sublevel; noren may set its
-// own windows').
+// The private SkyLight calls noren uses on windows, looked up at run time: the window server's
+// corner radii of a window (the border's corners); its sublevel, its place among the windows of its
+// level (Layers' Dock payload puts tiled windows at the backstop sublevel; noren may set its own
+// windows'); and leave to set the cursor over other apps' windows (GapResize).
 import AppKit
 
 /// The SkyLight calls that read windows.
@@ -16,6 +16,8 @@ struct SkyLight {
   private typealias IteratorGetCornerRadii = @convention(c) (AnyObject) -> Unmanaged<CFArray>?
   private typealias GetWindowSubLevel = @convention(c) (Int32, UInt32) -> Int32
   private typealias SetWindowSubLevel = @convention(c) (Int32, UInt32, Int32) -> Int32
+  private typealias SetConnectionProperty =
+    @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
 
   private let mainConnection: MainConnectionID
   private let queryWindows: QueryWindows
@@ -24,6 +26,7 @@ struct SkyLight {
   private let cornerRadii: IteratorGetCornerRadii
   private let getSubLevel: GetWindowSubLevel
   private let setSubLevel: SetWindowSubLevel
+  private let setConnectionProperty: SetConnectionProperty
 
   /// The calls, or nil when SkyLight or one of them is missing, which is reported.
   static let shared = load()
@@ -47,12 +50,14 @@ struct SkyLight {
       let advance = symbol("SLSWindowIteratorAdvance", as: IteratorAdvance.self),
       let cornerRadii = symbol("SLSWindowIteratorGetCornerRadii", as: IteratorGetCornerRadii.self),
       let getSubLevel = symbol("SLSGetWindowSubLevel", as: GetWindowSubLevel.self),
-      let setSubLevel = symbol("SLSSetWindowSubLevel", as: SetWindowSubLevel.self)
+      let setSubLevel = symbol("SLSSetWindowSubLevel", as: SetWindowSubLevel.self),
+      let setConnectionProperty = symbol(
+        "SLSSetConnectionProperty", as: SetConnectionProperty.self)
     else { return nil }
     return SkyLight(
       mainConnection: mainConnection, queryWindows: queryWindows, copyWindows: copyWindows,
       advance: advance, cornerRadii: cornerRadii, getSubLevel: getSubLevel,
-      setSubLevel: setSubLevel)
+      setSubLevel: setSubLevel, setConnectionProperty: setConnectionProperty)
   }
 
   /// The window server's radius for `window` when it rounds all four corners alike, else 0.
@@ -79,5 +84,12 @@ struct SkyLight {
   /// Puts `window`, one of noren's own, at `subLevel` among the windows of its level
   func setSubLevel(_ subLevel: Int32, of window: CGWindowID) {
     _ = setSubLevel(mainConnection(), window, subLevel)
+  }
+
+  /// Lets noren set the cursor while another app is under the pointer
+  func setCursorInBackground() {
+    let connection = mainConnection()
+    _ = setConnectionProperty(
+      connection, connection, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
   }
 }

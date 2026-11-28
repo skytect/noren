@@ -49,7 +49,7 @@ func makeParts(config: Config, aeroSpace: AeroSpaceClient) -> [any Part] {
     parts.append(Layers(aeroSpace: aeroSpace, wakeBorder: { border?.wake() }))
   }
   if config.drag.enable {
-    parts.append(Drag(config: config.drag))
+    parts.append(Drag(config: config.drag, aeroSpace: aeroSpace))
   }
   if config.displays.enable {
     parts.append(Displays(config: config.displays))

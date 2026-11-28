@@ -15,6 +15,9 @@
 // Accessibility, which the app answers in its own time, so only the latest point is sent, one at a
 // time (Mover).
 //
+// The same tap takes a press with no key held that lands on no window, in the gap between tiled
+// windows, and the drag after it, for GapResize: dragging a gap resizes the windows beside it.
+//
 // Needs Accessibility, to change events. An active tap whose process loses that grant can hold
 // every click on the screen, so the tap runs only while the grant is there: it is looked at every
 // grantCheckInterval, and the tap removed when it is gone and made again when it is back.
@@ -46,8 +49,10 @@ final class Drag: Part {
   private var tap: (port: CFMachPort, source: CFRunLoopSource)?
   /// The drag under way, nil when there is none
   private var dragged: Dragged?
+  private let gaps: GapResize
 
-  init(config: DragConfig) {
+  init(config: DragConfig, aeroSpace: AeroSpaceClient) {
+    gaps = GapResize(aeroSpace: aeroSpace)
     modifier =
       switch config.modifier {
       case .alt: .maskAlternate
@@ -57,6 +62,7 @@ final class Drag: Part {
   }
 
   func start() {
+    gaps.start()
     // Asks once (the system prompt); the later looks take no options: an empty dictionary there
     // crashed in AXIsProcessTrustedWithOptions. The key is kAXTrustedCheckOptionPrompt's value:
     // Swift 6 reads that C global as shared mutable state.
@@ -70,6 +76,10 @@ final class Drag: Part {
       MainActor.assumeIsolated { grantMayHaveChanged() }
     }
     RunLoop.main.add(timer, forMode: .common)
+  }
+
+  func handle(_ event: AeroSpaceEvent) {
+    gaps.handle(event)
   }
 
   private func grantMayHaveChanged() {
@@ -124,14 +134,26 @@ final class Drag: Part {
     case .leftMouseDown:
       dragged?.mover.finish()
       dragged = nil
+      gaps.end()
       let held = event.flags.intersection([.maskControl, .maskAlternate, .maskCommand])
-      guard held == modifier, let window = Self.window(at: event.location)
-      else { return true }
+      // A gap first: most presses land in a tiled window, which rules a gap out without the hit
+      // test; a floating window over the gap takes the press
+      if held.isEmpty, let hit = gaps.hit(at: event.location),
+        Self.window(at: event.location) == nil
+      {
+        gaps.begin(hit, at: event.location)
+        return false
+      }
+      guard held == modifier, let window = Self.window(at: event.location) else { return true }
       let mover = Mover(window: window.id, pid: window.pid)
       NSRunningApplication(processIdentifier: window.pid)?.activate()
       dragged = Dragged(mover: mover, origin: window.frame.origin, start: event.location)
       return false
     case .leftMouseDragged:
+      if gaps.isResizing {
+        gaps.drag(to: event.location)
+        return false
+      }
       guard let dragged else { return true }
       let pointer = event.location
       var point = CGPoint(
@@ -144,6 +166,7 @@ final class Drag: Part {
     case .leftMouseUp:
       dragged?.mover.finish()
       dragged = nil
+      gaps.end()
       return true
     default:
       return true
